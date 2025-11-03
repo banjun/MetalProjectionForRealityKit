@@ -1,0 +1,15 @@
+{
+  "originHash" : "bd95cc00f3195ff657e17af1e29203e485d7b133ab46deb67b28e267acffdecc",
+  "pins" : [
+    {
+      "identity" : "shadergraphcoder",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/banjun/ShaderGraphCoder",
+      "state" : {
+        "branch" : "macos",
+        "revision" : "ae91a001ef3cfc20af3b916517134025f90d0f9d"
+      }
+    }
+  ],
+  "version" : 3
+}

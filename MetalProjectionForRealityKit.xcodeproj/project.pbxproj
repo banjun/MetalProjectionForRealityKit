@@ -7,10 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		EA00AB492EB8D4480025B081 /* ShaderGraphCoder in Frameworks */ = {isa = PBXBuildFile; productRef = EA00AB482EB8D4480025B081 /* ShaderGraphCoder */; };
+		EA00AB4B2EB8D5EC0025B081 /* BridgingHeader.h in Sources */ = {isa = PBXBuildFile; fileRef = EA00AB4A2EB8D5E50025B081 /* BridgingHeader.h */; };
 		EA20CC702EB8B4E000555555 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = EA20CC6F2EB8B4E000555555 /* RealityKitContent */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		EA00AB4A2EB8D5E50025B081 /* BridgingHeader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BridgingHeader.h; sourceTree = "<group>"; };
 		EA20CC6A2EB8B4E000555555 /* MetalProjectionForRealityKit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MetalProjectionForRealityKit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA20CC6E2EB8B4E000555555 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -25,11 +28,22 @@
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
+/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+		EA00AB4E2EB8D70E0025B081 /* Exceptions for "MetalProjectionForRealityKit" folder in "Compile Sources" phase from "MetalProjectionForRealityKit" target */ = {
+			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
+			buildPhase = EA20CC662EB8B4E000555555 /* Sources */;
+			membershipExceptions = (
+				Shaders.h,
+			);
+		};
+/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		EA20CC6C2EB8B4E000555555 /* MetalProjectionForRealityKit */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				EA20CC7A2EB8B4E200555555 /* Exceptions for "MetalProjectionForRealityKit" folder in "MetalProjectionForRealityKit" target */,
+				EA00AB4E2EB8D70E0025B081 /* Exceptions for "MetalProjectionForRealityKit" folder in "Compile Sources" phase from "MetalProjectionForRealityKit" target */,
 			);
 			path = MetalProjectionForRealityKit;
 			sourceTree = "<group>";
@@ -41,6 +55,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EA00AB492EB8D4480025B081 /* ShaderGraphCoder in Frameworks */,
 				EA20CC702EB8B4E000555555 /* RealityKitContent in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -51,6 +66,7 @@
 		EA20CC612EB8B4E000555555 = {
 			isa = PBXGroup;
 			children = (
+				EA00AB4A2EB8D5E50025B081 /* BridgingHeader.h */,
 				EA20CC6C2EB8B4E000555555 /* MetalProjectionForRealityKit */,
 				EA20CC6D2EB8B4E000555555 /* Packages */,
 				EA20CC6B2EB8B4E000555555 /* Products */,
@@ -94,6 +110,7 @@
 			name = MetalProjectionForRealityKit;
 			packageProductDependencies = (
 				EA20CC6F2EB8B4E000555555 /* RealityKitContent */,
+				EA00AB482EB8D4480025B081 /* ShaderGraphCoder */,
 			);
 			productName = MetalProjectionForRealityKit;
 			productReference = EA20CC6A2EB8B4E000555555 /* MetalProjectionForRealityKit.app */;
@@ -123,6 +140,9 @@
 			);
 			mainGroup = EA20CC612EB8B4E000555555;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				EA00AB472EB8D4480025B081 /* XCRemoteSwiftPackageReference "ShaderGraphCoder" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EA20CC6B2EB8B4E000555555 /* Products */;
 			projectDirPath = "";
@@ -148,6 +168,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EA00AB4B2EB8D5EC0025B081 /* BridgingHeader.h in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -177,6 +198,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = BridgingHeader.h;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 7;
@@ -206,6 +228,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = BridgingHeader.h;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 7;
@@ -356,7 +379,23 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		EA00AB472EB8D4480025B081 /* XCRemoteSwiftPackageReference "ShaderGraphCoder" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/banjun/ShaderGraphCoder";
+			requirement = {
+				branch = macos;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		EA00AB482EB8D4480025B081 /* ShaderGraphCoder */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EA00AB472EB8D4480025B081 /* XCRemoteSwiftPackageReference "ShaderGraphCoder" */;
+			productName = ShaderGraphCoder;
+		};
 		EA20CC6F2EB8B4E000555555 /* RealityKitContent */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RealityKitContent;
