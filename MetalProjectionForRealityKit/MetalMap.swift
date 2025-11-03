@@ -55,16 +55,33 @@ final class MetalMap {
             return
         }
         guard let deviceAnchor = worldTracker.queryDeviceAnchor(atTimestamp: CACurrentMediaTime()) else { return }
+        // using hard coded value, because we cannot get at runtime, as the only way to get them is from CompsitorLayer Drawable that cannot run simultaneously with ImmersiveView with RealityView.
+#if targetEnvironment(simulator)
+        let projection0 = simd_float4x4([
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.7777778, 0.0, 0.0],
+            [0.0, 0.0, 0.0, -1.0],
+            [0.0, 0.0, 0.1, 0.0],
+        ])
+        let projection1 = projection0
+#else
+        let projection0 = simd_float4x4([
+            [0.7315394, 3.9901988e-07, 0.0, 3.1312097e-06],
+            [2.0127231e-07, 0.91187435, 0.0, 9.520301e-07],
+            [-0.26791388, -0.08751587, 0.0, -1.0000012],
+            [0.0, 0.0, 0.09993004, 0.0]
+        ])
+        let projection1 = simd_float4x4([
+            [0.73168945, -1.0521787e-07, 0.0, -2.2248819e-06],
+            [1.8116259e-07, 0.9120613, 0.0, -6.887392e-07],
+            [0.26794675, -0.0874681, 0.0, -1.0000007],
+            [0.0, 0.0, 0.09995053, 0.0]
+        ])
+#endif
         var uniforms = Uniforms(
             cameraTransform: deviceAnchor.originFromAnchorTransform,
-            projectionCount: 1,
-            projection0: simd_float4x4([
-                [1.0, 0.0, 0.0, 0.0],
-                [0.0, 1.7777778, 0.0, 0.0],
-                [0.0, 0.0, 0.0, -1.0],
-                [0.0, 0.0, 0.1, 0.0]
-            ]),
-            projection1: .init(diagonal: [1,1,1,1]))
+            projection0: projection0,
+            projection1: projection1)
 
         guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }
         defer {commandBuffer.commit()}
@@ -80,12 +97,7 @@ final class MetalMap {
         if let blit = commandBuffer.makeBlitCommandEncoder() {
             defer {blit.endEncoding()}
             withUnsafeBytes(of: &uniforms) { u in
-                var p = uniformsBuffer.contents()
-                p.copyMemory(from: u.baseAddress!.advanced(by: MemoryLayout<Uniforms>.offset(of: \.cameraTransform)!), byteCount: MemoryLayout<simd_float4x4>.size)
-                p += MemoryLayout<simd_float4x4>.size
-                p.copyMemory(from: u.baseAddress!.advanced(by: MemoryLayout<Uniforms>.offset(of: \.projection0)!), byteCount: MemoryLayout<simd_float4x4>.size)
-                p += MemoryLayout<simd_float4x4>.size
-                p.copyMemory(from: u.baseAddress!.advanced(by: MemoryLayout<Uniforms>.offset(of: \.projection1)!), byteCount: MemoryLayout<simd_float4x4>.size)
+                uniformsBuffer.contents().copyMemory(from: u.baseAddress!, byteCount: MemoryLayout<Uniforms>.size)
             }
             blit.copy(from: uniformsBuffer, sourceOffset: 0, sourceBytesPerRow: MemoryLayout<simd_float4x4>.size, sourceBytesPerImage: uniformsBuffer.length, sourceSize: MTLSize(width: 4, height: 3, depth: 1), to: uniformsTexture.replace(using: commandBuffer), destinationSlice: 0, destinationLevel: 0, destinationOrigin: .init())
         }
