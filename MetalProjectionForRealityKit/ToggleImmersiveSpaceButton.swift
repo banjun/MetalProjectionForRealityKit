@@ -1,10 +1,3 @@
-//
-//  ToggleImmersiveSpaceButton.swift
-//  MetalProjectionForRealityKit
-//
-//  Created by banjun on R 7/11/03.
-//
-
 import SwiftUI
 
 struct ToggleImmersiveSpaceButton: View {
@@ -14,20 +7,24 @@ struct ToggleImmersiveSpaceButton: View {
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
 
+    var immersiveSpaceID: String
+    var immersiveSpaceName: String
+
     var body: some View {
+        let isEnabled = appModel.immersiveSpaceState == .closed || appModel.immersiveSpaceState == .open(immersiveSpaceID)
         Button {
             Task { @MainActor in
                 switch appModel.immersiveSpaceState {
                     case .open:
-                        appModel.immersiveSpaceState = .inTransition
+                        appModel.immersiveSpaceState = .inTransition(nil)
                         await dismissImmersiveSpace()
                         // Don't set immersiveSpaceState to .closed because there
                         // are multiple paths to ImmersiveView.onDisappear().
                         // Only set .closed in ImmersiveView.onDisappear().
 
                     case .closed:
-                        appModel.immersiveSpaceState = .inTransition
-                        switch await openImmersiveSpace(id: appModel.immersiveSpaceID) {
+                        appModel.immersiveSpaceState = .inTransition(immersiveSpaceID)
+                        switch await openImmersiveSpace(id: immersiveSpaceID) {
                             case .opened:
                                 // Don't set immersiveSpaceState to .open because there
                                 // may be multiple paths to ImmersiveView.onAppear().
@@ -49,9 +46,13 @@ struct ToggleImmersiveSpaceButton: View {
                 }
             }
         } label: {
-            Text(appModel.immersiveSpaceState == .open ? "Hide Immersive Space" : "Show Immersive Space")
+            Text(isEnabled
+                 ? (appModel.immersiveSpaceState == .open(immersiveSpaceID)
+                    ? "Hide \(immersiveSpaceName)"
+                    : "Show \(immersiveSpaceName)")
+                 : "\(immersiveSpaceName): disabled")
         }
-        .disabled(appModel.immersiveSpaceState == .inTransition)
+        .disabled(!isEnabled)
         .animation(.none, value: 0)
         .fontWeight(.semibold)
     }
