@@ -2,14 +2,40 @@ import SwiftUI
 import RealityKit
 import ShaderGraphCoder
 
+extension SGVector {
+    static func screenUV(cameraTransform: SGMatrix, cameraProjection0: SGMatrix, cameraProjection1: SGMatrix) -> SGVector {
+        let posWorld = SGVector.position(space: .world)
+        let posWorld4 = SGVector.vector4f(posWorld.x, posWorld.y, posWorld.z, .float(1))
+        // proj = P * V * posWorld, V = CameraTransform^-1. use camera index to switch P for left/right eye
+        let posCamera = posWorld4.transformMatrix(mat: cameraTransform.invertMatrix())
+        let posProjection0 = posCamera.transformMatrix(mat: cameraProjection0)
+        let posProjection1 = posCamera.transformMatrix(mat: cameraProjection1)
+        let posProjection = ShaderGraphCoder.geometrySwitchCameraIndex(mono: posProjection0, left: posProjection1, right: posProjection0)
+        // perspective division (/w) is needed to cancel perspective tiling. that's why the homogeneous vector posWorld4
+        let ndc = posProjection.xy / posProjection.w
+        let uv = (ndc + 1) / 2
+        return uv // .fract()
+    }
+}
+extension SGMatrix {
+    static func decodeTexturePixel(texture: SGTexture, offset: SGVector, stride: SGVector = .vector2f(1, 0)) -> SGMatrix {
+        .matrix4d(
+            texture.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: offset + stride * 0),
+            texture.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: offset + stride * 1),
+            texture.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: offset + stride * 2),
+            texture.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: offset + stride * 3),
+        )
+    }
+}
+
 struct ImmersiveView: View {
-    @State private var metalMap = MetalMap(width: 256, height: 256)
+    @State private var metalMap = MetalMap(width: 128, height: 128)
 
     var body: some View {
         RealityView { content in
             let texView = await ModelEntity(mesh: .generatePlane(width: 0.5, height: 0.5), materials: [
                 {
-                    let tex = SGTexture.texture(metalMap.textureResource)
+                    let tex = SGTexture.texture(metalMap.textureResource0)
                     let color: SGColor = tex.image(defaultValue: .transparentBlack,
                                                    uaddressmode: .clamp,
                                                    vaddressmode: .clamp,
@@ -35,46 +61,49 @@ struct ImmersiveView: View {
             uniformsView.position = [-0.4, 1.5, -1]
             content.add(uniformsView)
 
-            let screenMaterial: ShaderGraphMaterial = await {
+            @MainActor func screenUV() -> SGVector {
                 // decode CameraTransform & projection matrices from texture in 4x3 pixels. each row encodes 1 matrix.
                 let uniforms = SGTexture.texture(metalMap.uniformsTextureResource)
-                let cameraTransform = SGMatrix.matrix4d(
-                    uniforms.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: .vector2f(0, 0)),
-                    uniforms.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: .vector2f(1, 0)),
-                    uniforms.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: .vector2f(2, 0)),
-                    uniforms.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: .vector2f(3, 0)))
-                let cameraProjection0 = SGMatrix.matrix4d(
-                    uniforms.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: .vector2f(0, 1)),
-                    uniforms.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: .vector2f(1, 1)),
-                    uniforms.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: .vector2f(2, 1)),
-                    uniforms.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: .vector2f(3, 1)))
-                let cameraProjection1 = SGMatrix.matrix4d(
-                    uniforms.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: .vector2f(0, 2)),
-                    uniforms.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: .vector2f(1, 2)),
-                    uniforms.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: .vector2f(2, 2)),
-                    uniforms.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: .vector2f(3, 2)))
-                let posWorld = SGVector.position(space: .world)
-                let posWorld4 = SGVector.vector4f(posWorld.x, posWorld.y, posWorld.z, .float(1))
-                // proj = P * V * posWorld, V = CameraTransform^-1. use camera index to switch P for left/right eye
-                let posCamera = posWorld4.transformMatrix(mat: cameraTransform.invertMatrix())
-                let posProjection0 = posCamera.transformMatrix(mat: cameraProjection0)
-                let posProjection1 = posCamera.transformMatrix(mat: cameraProjection1)
-                let posProjection = geometrySwitchCameraIndex(mono: posProjection0, left: posProjection1, right: posProjection0)
-                // perspective division (/w) is needed to cancel perspective tiling. that's why the homogeneous vector posWorld4
-                let ndc = ((posProjection.xy / posProjection.w) + 0.5)//.fract()
-                let color: SGColor = .init(.vector3f(ndc.x, ndc.y, .float(0)))
+                let cameraTransform = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 0))
+                let cameraProjection0 = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 1))
+                let cameraProjection1 = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 2))
+                return .screenUV(cameraTransform: cameraTransform, cameraProjection0: cameraProjection0, cameraProjection1: cameraProjection1)
+            }
+            @MainActor func projectedMap(texture: SGTexture, uv: SGVector) -> SGVector {
+                texture.image(
+                    defaultValue: .vector4fZero,
+                    texcoord: uv,
+                    uaddressmode: .constant,
+                    vaddressmode: .constant,
+                    filtertype: .linear)
+            }
 
-                let tex = SGTexture.texture(metalMap.textureResource)
-                let mapValue: SGColor = tex.image(defaultValue: .transparentBlack, texcoord: (ndc + 0.5) * 0.5)
+            let mono = SGTexture.texture(metalMap.textureResource0)
+            let left = SGTexture.texture(metalMap.textureResource0)
+            let right = SGTexture.texture(metalMap.textureResource1)
+            let projectedTexture = right
+            // TODO: camera switch
+//            let projectedTexture = SGTexture(source: .nodeOutput(SGNode(
+//                nodeType: "ND_realitykit_geometry_switch_cameraindex_color4",
+//                inputs: [
+//                    .init(name: "mono", dataType: SGDataType.asset, connection: mono),
+//                    .init(name: "left", dataType: SGDataType.asset, connection: left),
+//                    .init(name: "right", dataType: SGDataType.asset, connection: right),
+//                ],
+//                outputs: [.init(dataType: SGDataType.asset)])))
 
-//                return try! await ShaderGraphMaterial(surface: unlitSurface(color: color, opacity: .float(1), applyPostProcessToneMap: false))
+            let screenMaterial: ShaderGraphMaterial = await {
+                //                let uv = screenUV()
+                //                let color: SGColor = .init(.vector3f(uv.x, uv.y, .float(0)))
+                //                return try! await ShaderGraphMaterial(surface: unlitSurface(color: color, opacity: .float(1), applyPostProcessToneMap: false))
+                let mapValue = SGColor(projectedMap(texture: projectedTexture, uv: screenUV()))
                 return try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb, opacity: mapValue.a, applyPostProcessToneMap: false))
             }()
             let screen = ModelEntity(mesh: .generatePlane(width: 20, height: 10), materials: [screenMaterial])
             screen.position = [0, 1.5, -0.75]
-//            let head = AnchorEntity(.head) // anchoring to AnchorEntity causes projection error?
-//            head.addChild(screen)
-//            content.add(head)
+            //            let head = AnchorEntity(.head) // anchoring to AnchorEntity causes projection error?
+            //            head.addChild(screen)
+            //            content.add(head)
             content.add(screen)
 
             let screen2 = screen.clone(recursive: true)
@@ -92,12 +121,19 @@ struct ImmersiveView: View {
             screen4.transform.rotation = .init(angle: .pi / 2, axis: [0,1,0])
             content.add(screen4)
 
+            [screen, screen2, screen3, screen4].forEach {$0.isEnabled = false}
+
             let metalMapSystemEnabler = Entity()
             metalMapSystemEnabler.components.set(MetalMapSystem.Component(map: metalMap))
             content.add(metalMapSystemEnabler)
             MetalMapSystem.registerSystem()
 
-            let cube = ModelEntity(mesh: metalMap.meshResource, materials: [UnlitMaterial(color: .blue)])
+            let cube = await ModelEntity(mesh: metalMap.meshResource, materials: [{
+                let mapValue = projectedMap(texture: projectedTexture, uv: screenUV())
+                let color = SGColor(.vector3f(0, 0, 1) + 0.5 * mapValue.xyz)
+                return try! await ShaderGraphMaterial(surface: unlitSurface(color: color))
+//                UnlitMaterial(color: .blue)
+            }()])
             content.add(cube)
         }
     }

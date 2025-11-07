@@ -6,12 +6,15 @@ import QuartzCore
 final class MetalMap {
     private let device: MTLDevice = MTLCreateSystemDefaultDevice()!
     private let commandQueue: MTLCommandQueue
-    private let llTexture: LowLevelTexture
-    let textureResource: TextureResource
+    private let llTexture0: LowLevelTexture
+    private let llTexture1: LowLevelTexture
+    let textureResource0: TextureResource
+    let textureResource1: TextureResource
     private let computePipelineState: MTLComputePipelineState
     private let threadGroupsPerGrid: MTLSize
     private let threadsPerThreadgroup: MTLSize
-    private let outTextureIndex: Int
+    private let outTexture0Index: Int
+    private let outTexture1Index: Int
     private let uniformsIndex: Int
     private let verticesIndex: Int
     private let indicesIndex: Int
@@ -48,12 +51,14 @@ final class MetalMap {
     }
     private var worldTracker: WorldTrackingProvider?
 
-    init(width: Int = 32, height: Int = 32, kernelName: String = "draw", outTextureIndex: Int = 0, uniformsIndex: Int = 0, verticesIndex: Int = 1, indicesIndex: Int = 2, indicesCountIndex: Int = 3) {
+    init(width: Int = 32, height: Int = 32, kernelName: String = "draw", outTexture0Index: Int = 0, outTexture1Index: Int = 1, uniformsIndex: Int = 0, verticesIndex: Int = 1, indicesIndex: Int = 2, indicesCountIndex: Int = 3) {
         commandQueue = device.makeCommandQueue()!
         let function = device.makeDefaultLibrary()!.makeFunction(name: kernelName)!
         computePipelineState = try! device.makeComputePipelineState(function: function)
-        llTexture =  try! LowLevelTexture(descriptor: .init(pixelFormat: .rgba16Float, width: width, height: height))
-        textureResource = try! .init(from: llTexture)
+        llTexture0 = try! LowLevelTexture(descriptor: .init(pixelFormat: .rgba16Float, width: width, height: height))
+        llTexture1 = try! LowLevelTexture(descriptor: .init(pixelFormat: .rgba16Float, width: width, height: height))
+        textureResource0 = try! .init(from: llTexture0)
+        textureResource1 = try! .init(from: llTexture1)
 
         let threadWidth = computePipelineState.threadExecutionWidth
         let maxThreads = computePipelineState.maxTotalThreadsPerThreadgroup
@@ -62,7 +67,8 @@ final class MetalMap {
             width: (width + threadWidth - 1) / threadsPerThreadgroup.width,
             height: (height + threadsPerThreadgroup.height - 1) / threadsPerThreadgroup.height,
             depth: 1)
-        self.outTextureIndex = outTextureIndex
+        self.outTexture0Index = outTexture0Index
+        self.outTexture1Index = outTexture1Index
         self.uniformsIndex = uniformsIndex
         self.verticesIndex = verticesIndex
         self.indicesIndex = indicesIndex
@@ -172,7 +178,8 @@ final class MetalMap {
         if let computeEncoder = commandBuffer.makeComputeCommandEncoder() {
             defer {computeEncoder.endEncoding()}
             computeEncoder.setComputePipelineState(computePipelineState)
-            computeEncoder.setTexture(llTexture.replace(using: commandBuffer), index: outTextureIndex)
+            computeEncoder.setTexture(llTexture0.replace(using: commandBuffer), index: outTexture0Index)
+            computeEncoder.setTexture(llTexture1.replace(using: commandBuffer), index: outTexture1Index)
             computeEncoder.setBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: uniformsIndex)
             computeEncoder.setBuffer(llMesh.read(bufferIndex: 0, using: commandBuffer), offset: 0, index: verticesIndex)
             let indices = llMesh.readIndices(using: commandBuffer)
