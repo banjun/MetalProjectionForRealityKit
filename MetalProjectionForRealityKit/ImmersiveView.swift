@@ -3,7 +3,7 @@ import RealityKit
 import ShaderGraphCoder
 
 struct ImmersiveView: View {
-    @State private var metalMap = MetalMap()
+    @State private var metalMap = MetalMap(width: 256, height: 256)
 
     var body: some View {
         RealityView { content in
@@ -63,7 +63,12 @@ struct ImmersiveView: View {
                 // perspective division (/w) is needed to cancel perspective tiling. that's why the homogeneous vector posWorld4
                 let ndc = ((posProjection.xy / posProjection.w) + 0.5)//.fract()
                 let color: SGColor = .init(.vector3f(ndc.x, ndc.y, .float(0)))
-                return try! await ShaderGraphMaterial(surface: unlitSurface(color: color, applyPostProcessToneMap: false))
+
+                let tex = SGTexture.texture(metalMap.textureResource)
+                let mapValue: SGColor = tex.image(defaultValue: .transparentBlack, texcoord: (ndc + 0.5) * 0.5)
+
+//                return try! await ShaderGraphMaterial(surface: unlitSurface(color: color, opacity: .float(1), applyPostProcessToneMap: false))
+                return try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb, opacity: mapValue.a, applyPostProcessToneMap: false))
             }()
             let screen = ModelEntity(mesh: .generatePlane(width: 20, height: 10), materials: [screenMaterial])
             screen.position = [0, 1.5, -0.75]
@@ -91,6 +96,9 @@ struct ImmersiveView: View {
             metalMapSystemEnabler.components.set(MetalMapSystem.Component(map: metalMap))
             content.add(metalMapSystemEnabler)
             MetalMapSystem.registerSystem()
+
+            let cube = ModelEntity(mesh: metalMap.meshResource, materials: [UnlitMaterial(color: .blue)])
+            content.add(cube)
         }
     }
 }

@@ -13,17 +13,42 @@ final class MetalMap {
     private let threadsPerThreadgroup: MTLSize
     private let outTextureIndex: Int
     private let uniformsIndex: Int
+    private let verticesIndex: Int
+    private let indicesIndex: Int
+    private let indicesCountIndex: Int
 
     private let uniformsTexture: LowLevelTexture
     private let uniformsBuffer: any MTLBuffer
     let uniformsTextureResource: TextureResource
+
+    private let llMesh: LowLevelMesh
+    let meshResource: MeshResource
+    struct Vertex {
+        var position: SIMD3<Float>
+
+        static var vertexAttributes: [LowLevelMesh.Attribute] = [
+            .init(semantic: .position, format: .float3, offset: MemoryLayout<Self>.offset(of: \.position)!),
+        ]
+        static var vertexLayouts: [LowLevelMesh.Layout] = [
+            .init(bufferIndex: 0, bufferStride: MemoryLayout<Self>.stride)
+        ]
+        static var descriptor: LowLevelMesh.Descriptor {
+            var desc = LowLevelMesh.Descriptor()
+            desc.vertexAttributes = Vertex.vertexAttributes
+            desc.vertexLayouts = Vertex.vertexLayouts
+            desc.indexType = .uint32
+            desc.vertexCapacity = 10000
+            desc.indexCapacity = 10000
+            return desc
+        }
+    }
 
     private var arkitSession: ARKitSession? {
         didSet {oldValue?.stop()}
     }
     private var worldTracker: WorldTrackingProvider?
 
-    init(width: Int = 32, height: Int = 32, kernelName: String = "draw", outTextureIndex: Int = 0, uniformsIndex: Int = 1) {
+    init(width: Int = 32, height: Int = 32, kernelName: String = "draw", outTextureIndex: Int = 0, uniformsIndex: Int = 0, verticesIndex: Int = 1, indicesIndex: Int = 2, indicesCountIndex: Int = 3) {
         commandQueue = device.makeCommandQueue()!
         let function = device.makeDefaultLibrary()!.makeFunction(name: kernelName)!
         computePipelineState = try! device.makeComputePipelineState(function: function)
@@ -39,10 +64,64 @@ final class MetalMap {
             depth: 1)
         self.outTextureIndex = outTextureIndex
         self.uniformsIndex = uniformsIndex
+        self.verticesIndex = verticesIndex
+        self.indicesIndex = indicesIndex
+        self.indicesCountIndex = indicesCountIndex
 
         uniformsTexture = try! LowLevelTexture(descriptor: .init(pixelFormat: .rgba32Float, width: 4, height: 3)) // rgba for 1 row of simd_float4x4, total simd_float4x4 is rgba x 4, thus width = 4, and height 3 forcamera transform, projection0, projection1.
         uniformsTextureResource = try! .init(from: uniformsTexture)
         uniformsBuffer = device.makeBuffer(length: MemoryLayout<simd_float4x4>.size * 3)!
+
+        llMesh = try! LowLevelMesh(descriptor: Vertex.descriptor)
+        meshResource = try! MeshResource(from: llMesh)
+
+        let meshVertices: [Vertex] = {
+            let lbf: SIMD3<Float> = [-1, -1, +1]
+            let rbf: SIMD3<Float> = [+1, -1, +1]
+            let ltf: SIMD3<Float> = [-1, +1, +1]
+            let rtf: SIMD3<Float> = [+1, +1, +1]
+            let lbb: SIMD3<Float> = [-1, -1, -1]
+            let rbb: SIMD3<Float> = [+1, -1, -1]
+            let ltb: SIMD3<Float> = [-1, +1, -1]
+            let rtb: SIMD3<Float> = [+1, +1, -1]
+            return [
+                lbf, rbf, rtf,
+                lbf, rtf, ltf,
+                lbf, ltf, ltb,
+                lbf, ltb, lbb,
+                rbf, rbb, rtb,
+                rbf, rtb, rtf,
+                ltf, rtf, rtb,
+                ltf, rtb, ltb,
+                lbf, rbb, rbf,
+                lbf, lbb, rbb,
+                lbb, rtb, rbb,
+                lbb, ltb, rtb,
+            ].map {Vertex(position: $0 * 0.25 + SIMD3<Float>(0.5, 1.25, -1.25))}
+        }()
+        let meshIndices: [UInt32] = Array(0..<UInt32(meshVertices.count))
+        llMesh.withUnsafeMutableBytes(bufferIndex: 0) {
+            let p = $0.bindMemory(to: Vertex.self)
+            meshVertices.enumerated().forEach {
+                p[$0.offset] = $0.element
+            }
+        }
+        llMesh.withUnsafeMutableIndices {
+            let p = $0.bindMemory(to: UInt32.self)
+            meshIndices.forEach {
+                p[Int($0)] = $0
+            }
+        }
+        llMesh.parts.replaceAll([
+            .init(indexCount: meshIndices.count,
+                  topology: .triangle,
+                  bounds: .init(min: .init(meshVertices.map(\.position.x).min()!,
+                                           meshVertices.map(\.position.y).min()!,
+                                           meshVertices.map(\.position.z).min()!),
+                                max: .init(meshVertices.map(\.position.x).max()!,
+                                           meshVertices.map(\.position.y).max()!,
+                                           meshVertices.map(\.position.z).max()!)))
+        ])
     }
 
     func draw() {
@@ -80,8 +159,12 @@ final class MetalMap {
 #endif
         var uniforms = Uniforms(
             cameraTransform: deviceAnchor.originFromAnchorTransform,
-            projection0: projection0,
-            projection1: projection1)
+            projection0
+            : projection0,
+            projection1: projection1,
+            projection0Inverse: projection0.inverse,
+            projection1Inverse: projection1.inverse,
+        )
 
         guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }
         defer {commandBuffer.commit()}
@@ -91,6 +174,11 @@ final class MetalMap {
             computeEncoder.setComputePipelineState(computePipelineState)
             computeEncoder.setTexture(llTexture.replace(using: commandBuffer), index: outTextureIndex)
             computeEncoder.setBytes(&uniforms, length: MemoryLayout<Uniforms>.stride, index: uniformsIndex)
+            computeEncoder.setBuffer(llMesh.read(bufferIndex: 0, using: commandBuffer), offset: 0, index: verticesIndex)
+            let indices = llMesh.readIndices(using: commandBuffer)
+            var indicesCount = llMesh.parts.reduce(into: 0) {$0 += $1.indexCount}
+            computeEncoder.setBuffer(indices, offset: 0, index: indicesIndex)
+            computeEncoder.setBytes(&indicesCount, length: MemoryLayout<Int>.size, index: indicesCountIndex)
             computeEncoder.dispatchThreadgroups(threadGroupsPerGrid, threadsPerThreadgroup: threadsPerThreadgroup)
         }
 
