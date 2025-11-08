@@ -29,7 +29,7 @@ extension SGMatrix {
 }
 
 struct ImmersiveView: View {
-    @State private var metalMap = MetalMap(width: 128, height: 128)
+    @State private var metalMap = MetalMap(width: 1024, height: 1024)
 
     var body: some View {
         RealityView { content in
@@ -69,34 +69,25 @@ struct ImmersiveView: View {
                 let cameraProjection1 = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 2))
                 return .screenUV(cameraTransform: cameraTransform, cameraProjection0: cameraProjection0, cameraProjection1: cameraProjection1)
             }
-            @MainActor func projectedMap(texture: SGTexture, uv: SGVector) -> SGVector {
-                texture.image(
-                    defaultValue: .vector4fZero,
-                    texcoord: uv,
-                    uaddressmode: .constant,
-                    vaddressmode: .constant,
-                    filtertype: .linear)
+            @MainActor func projectedMap(textureLeft left: SGTexture, textureRight right: SGTexture, uv: SGVector) -> SGVector {
+                let image: (SGTexture) -> SGVector = {
+                    $0.image(defaultValue: .vector4fZero,
+                             texcoord: uv,
+                             uaddressmode: .constant,
+                             vaddressmode: .constant,
+                             filtertype: .linear)
+                }
+                return geometrySwitchCameraIndex(mono: image(left), left: image(left), right: image(right))
             }
-
-            let mono = SGTexture.texture(metalMap.textureResource0)
-            let left = SGTexture.texture(metalMap.textureResource0)
-            let right = SGTexture.texture(metalMap.textureResource1)
-            let projectedTexture = right
-            // TODO: camera switch
-//            let projectedTexture = SGTexture(source: .nodeOutput(SGNode(
-//                nodeType: "ND_realitykit_geometry_switch_cameraindex_color4",
-//                inputs: [
-//                    .init(name: "mono", dataType: SGDataType.asset, connection: mono),
-//                    .init(name: "left", dataType: SGDataType.asset, connection: left),
-//                    .init(name: "right", dataType: SGDataType.asset, connection: right),
-//                ],
-//                outputs: [.init(dataType: SGDataType.asset)])))
+            @MainActor func projectedMap() -> SGVector {
+                projectedMap(textureLeft: SGTexture.texture(metalMap.textureResource1), textureRight: SGTexture.texture(metalMap.textureResource0), uv: screenUV())
+            }
 
             let screenMaterial: ShaderGraphMaterial = await {
                 //                let uv = screenUV()
                 //                let color: SGColor = .init(.vector3f(uv.x, uv.y, .float(0)))
                 //                return try! await ShaderGraphMaterial(surface: unlitSurface(color: color, opacity: .float(1), applyPostProcessToneMap: false))
-                let mapValue = SGColor(projectedMap(texture: projectedTexture, uv: screenUV()))
+                let mapValue = SGColor(projectedMap())
                 return try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb, opacity: mapValue.a, applyPostProcessToneMap: false))
             }()
             let screen = ModelEntity(mesh: .generatePlane(width: 20, height: 10), materials: [screenMaterial])
@@ -129,8 +120,8 @@ struct ImmersiveView: View {
             MetalMapSystem.registerSystem()
 
             let cube = await ModelEntity(mesh: metalMap.meshResource, materials: [{
-                let mapValue = projectedMap(texture: projectedTexture, uv: screenUV())
-                let color = SGColor(.vector3f(0, 0, 1) + 0.5 * mapValue.xyz)
+                let mapValue = projectedMap()
+                let color = SGColor(.vector3f(0.5, 0, 0) + 0.8 * mapValue.xyz)
                 return try! await ShaderGraphMaterial(surface: unlitSurface(color: color))
 //                UnlitMaterial(color: .blue)
             }()])

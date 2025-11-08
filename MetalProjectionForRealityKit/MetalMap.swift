@@ -165,8 +165,7 @@ final class MetalMap {
 #endif
         var uniforms = Uniforms(
             cameraTransform: deviceAnchor.originFromAnchorTransform,
-            projection0
-            : projection0,
+            projection0: projection0,
             projection1: projection1,
             projection0Inverse: projection0.inverse,
             projection1Inverse: projection1.inverse,
