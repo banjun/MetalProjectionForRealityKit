@@ -121,9 +121,25 @@ struct ImmersiveView: View {
 
             let cube = await ModelEntity(mesh: metalMap.meshResource, materials: [{
                 let mapValue = projectedMap()
-                let color = SGColor(.vector3f(0.5, 0, 0) + 0.8 * mapValue.xyz)
-                return try! await ShaderGraphMaterial(surface: unlitSurface(color: color))
-//                UnlitMaterial(color: .blue)
+//                let color = SGColor(.vector3f(0.5, 0, 0) + 0.8 * mapValue.xyz)
+//                let color = SGColor(mapValue.xyz)
+//                let image = SGTexture.texture(contentsOf: Bundle.main.url(forResource: "CustomUVChecker_byValle_1K", withExtension: "png")!)
+                let image = SGTexture.texture(contentsOf: Bundle.main.url(forResource: "arisu-checker", withExtension: "png")!)
+                let color: SGColor = image.image(defaultValue: .transparentBlack, texcoord: mapValue.xy, uaddressmode: .constant, vaddressmode: .constant, filtertype: .linear)
+                return try! await ShaderGraphMaterial(surface: unlitSurface(
+                    color: (color.a * mapValue.w).ifGreater(.float(0.05), trueResult: color.rgb, falseResult: .black),
+                    opacity: (color.a * mapValue.w).max(.float(0.05)),
+                    applyPostProcessToneMap: false,
+                ))
+                return try! await ShaderGraphMaterial(surface: pbrSurface(
+                    baseColor: color.rgb,
+                    emissiveColor: .black,
+                    normal: .vector3f(0, 0, 1),
+                    roughness: .float(0.2),
+                    metallic: .float(0),
+                    specular: .float(0.5),
+                    opacity: (color.a * mapValue.w).max(.float(0.1)),
+                    clearcoat: .float(0)))
             }()])
             content.add(cube)
         }

@@ -10,4 +10,5 @@ struct Uniforms {
 
 struct Vertex {
     simd_float3 position;
+    uint32_t mask;
 };

@@ -28,9 +28,11 @@ final class MetalMap {
     let meshResource: MeshResource
     struct Vertex {
         var position: SIMD3<Float>
+        var mask: UInt32
 
         static var vertexAttributes: [LowLevelMesh.Attribute] = [
             .init(semantic: .position, format: .float3, offset: MemoryLayout<Self>.offset(of: \.position)!),
+//            .init(semantic: .unspecified, format: .uint, offset: MemoryLayout<Self>.offset(of: \.mask)!), // NOTE: specifying unspecified attribute cause Direct Mesh Validation error on init
         ]
         static var vertexLayouts: [LowLevelMesh.Layout] = [
             .init(bufferIndex: 0, bufferStride: MemoryLayout<Self>.stride)
@@ -90,22 +92,24 @@ final class MetalMap {
             let rbb: SIMD3<Float> = [+1, -1, -1]
             let ltb: SIMD3<Float> = [-1, +1, -1]
             let rtb: SIMD3<Float> = [+1, +1, -1]
-            return [
-                lbf, rbf, rtf,
-                lbf, rtf, ltf,
-                lbf, ltf, ltb,
-                lbf, ltb, lbb,
-                rbf, rbb, rtb,
-                rbf, rtb, rtf,
-                ltf, rtf, rtb,
-                ltf, rtb, ltb,
-                lbf, rbb, rbf,
-                lbf, lbb, rbb,
-                lbb, rtb, rbb,
-                lbb, ltb, rtb,
-            ].map {Vertex(position: $0 * 0.25 + SIMD3<Float>(0.5, 1.25, -1.25))}
+            return [lbf, rbf, ltf, rtf, lbb, rbb, ltb, rtb]
+                .map {Vertex(position: $0 * SIMD3<Float>(0.125, 0.125, 0.03) + SIMD3<Float>(0.5, 1.25, -0.75),
+                             mask: ($0.z == Float(-1)) ? 1 : 0)} // mask=1: sink
         }()
-        let meshIndices: [UInt32] = Array(0..<UInt32(meshVertices.count))
+        let meshIndices: [UInt32] = [
+            0, 1, 3,
+            0, 3, 2,
+            0, 2, 6,
+            0, 6, 4,
+            1, 5, 7,
+            1, 7, 3,
+            2, 3, 7,
+            2, 7, 6,
+            0, 5, 1,
+            0, 4, 5,
+            4, 7, 5,
+            4, 6, 7,
+        ]
         llMesh.withUnsafeMutableBytes(bufferIndex: 0) {
             let p = $0.bindMemory(to: Vertex.self)
             meshVertices.enumerated().forEach {
@@ -114,8 +118,8 @@ final class MetalMap {
         }
         llMesh.withUnsafeMutableIndices {
             let p = $0.bindMemory(to: UInt32.self)
-            meshIndices.forEach {
-                p[Int($0)] = $0
+            meshIndices.enumerated().forEach {
+                p[$0.offset] = $0.element
             }
         }
         llMesh.parts.replaceAll([
