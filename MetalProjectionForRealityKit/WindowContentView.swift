@@ -28,6 +28,9 @@ struct WindowContentView: View {
                 VStack {
                     if !appModel.projections.isEmpty {
                         Text("Projections")
+                        if let ipd = appModel.estimatedIPD {
+                            Text("Estimated IPD = \(ipd, format: .number.precision(.fractionLength(3)))")
+                        }
                     }
                     HStack(spacing: 40) {
                         ForEach(appModel.projections.indices, id: \.self) { i in

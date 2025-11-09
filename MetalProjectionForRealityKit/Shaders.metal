@@ -74,13 +74,13 @@ static float4 uvRefractionAndReflection(float3 rayOrigin,
                                         const device uint32_t *indices,
                                         const device int &indicesCount) {
     int sinkMask = 1;
-    float eta = 1 / 1.49;
+    float eta = 1;// 1 / 1.49;
     float F0 = 0.04;
     float attenuation = 1;
     // search sink surface.
     // assuming cube-ish shape.
     // bounce on front -> bounce on back * 0-2 times -> bounce on sink surface
-    for (int bounce = 0; bounce < 10; ++bounce) {
+    for (int bounce = 0; bounce < 2; ++bounce) {
         auto minDistance = float(INFINITY);
         auto minDiff = float3(INFINITY);
         int3 minMask = int3(0);
@@ -110,7 +110,7 @@ static float4 uvRefractionAndReflection(float3 rayOrigin,
                 // nearest hit is sink. conclude on the sink surface
                 return float4((minIntersection.point.x - 0.5) * 4 + 0.5,
                               (minIntersection.point.y - 1.25) * 4 + 0.5, 0,
-                              attenuation); // TODO: use baricentric uv
+                              1); //attenuation); // TODO: use baricentric uv
             }
             if (bounce == 0 && minIntersection.onFront) {
                 // refract into inside
@@ -146,13 +146,7 @@ void draw(texture2d<float, access::write> outTexture0 [[texture(0)]],
     if (any(pixelCoord >= size)) { return; }
 
     auto cameraTransform = uniforms.cameraTransform;
-    auto cameraPosition = cameraTransform[3].xyz;
-//    auto cameraRight = normalize(cameraTransform[0].xyz);
-//    auto ipd = 0 * 0.064; // TODO: remove hard code
-//    float3 cameraPositions[2] = {
-//        cameraPosition + cameraRight * ipd / 2,
-//        cameraPosition - cameraRight * ipd / 2
-//    };
+    auto cameraCenterPosition = cameraTransform[3].xyz;
     float4x4 projectionInverses[2] = {
         uniforms.projection0Inverse,
         uniforms.projection1Inverse
@@ -171,15 +165,39 @@ void draw(texture2d<float, access::write> outTexture0 [[texture(0)]],
     };
     texture2d<float, access::write> outTextures[] = {outTexture0, outTexture1};
 
+    float4 ndcCenter = float4(0, 0, -1, 1);
+    float4 viewOrigins[2] = {
+        projectionInverses[0] * ndcCenter,
+        projectionInverses[1] * ndcCenter
+    };
+    viewOrigins[0] /= viewOrigins[0].w;
+    viewOrigins[1] /= viewOrigins[1].w;
+
+    float4x4 projections[2] = { uniforms.projection0, uniforms.projection1 };
+
+    float4x4 cameraTransforms[2] = {
+        uniforms.cameraTransformL,
+        uniforms.cameraTransformR,
+    };
+    float3 cameraPositions[2] = {
+        cameraTransforms[0][3].xyz,
+        cameraTransforms[1][3].xyz
+    };
+
     for (int vid = 0; vid < 2; ++vid) {
         auto pixelCoordInView = pixelCoordInViews[vid];
         auto outTexture = outTextures[vid];
         auto viewDirectionInView = normalize(pixelCoordInView.xyz / pixelCoordInView.w);
         // world space
 //        auto cameraPosition = cameraPositions[vid];
-        auto viewDirection = (cameraTransform * float4(viewDirectionInView, 0)).xyz;
+//        auto cameraTransform = cameraTransforms[vid];
+        auto viewDirection = (cameraTransforms[vid] * float4(viewDirectionInView, 0)).xyz;
+//        auto viewDirection = normalize(cameraTransform[0].xyz * viewDirectionInView.x +
+//                                       cameraTransform[1].xyz * viewDirectionInView.y +
+//                                       cameraTransform[2].xyz * viewDirectionInView.z);
+        auto worldOrigin = (cameraTransforms[vid] * viewOrigins[vid]).xyz;
 
 //        outTexture.write(colorHit(cameraPosition, viewDirection, vertices, indices, indicesCount), pixelCoord);
-        outTexture.write(uvRefractionAndReflection(cameraPosition, viewDirection, vertices, indices, indicesCount), pixelCoord);
+        outTexture.write(uvRefractionAndReflection(cameraPositions[vid], viewDirection, vertices, indices, indicesCount), pixelCoord);
     }
 }
