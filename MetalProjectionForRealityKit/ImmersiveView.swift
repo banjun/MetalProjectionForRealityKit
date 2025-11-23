@@ -17,7 +17,22 @@ extension SGVector {
         let posProjectionR = posCameraR.transformMatrix(mat: cameraProjection1)
         let posProjection = ShaderGraphCoder.geometrySwitchCameraIndex(mono: posProjectionC, left: posProjectionL, right: posProjectionR)
         // perspective division (/w) is needed to cancel perspective tiling. that's why the homogeneous vector posWorld4
-        let ndc = posProjection.xy / posProjection.w
+//        let alpha = SGScalar.float(-0.09691928) // projection.columns.2.w
+//        let beta = SGScalar.zero
+//        let w_corrected = posProjection.w / (alpha * posCameraL.z + beta)
+//
+//        // 2. View-space 方向を取り出す
+//        // w = 0 にして方向だけ考慮
+//        let dirCamera4 = SGVector.vector4f(posCameraL.x, posCameraL.y, posCameraL.z, .float(0))
+//
+//        // 3. Clip-space に変換
+//        let clip = dirCamera4.normalize().transformMatrix(mat: cameraProjection0)
+//
+//        // 4. NDC.xy を計算
+//        // w = clip.w は方向ベースなので 1 でもよい（距離依存パース無視）
+//        let ndc = clip.xy / clip.w
+
+        let ndc = posProjection.xy / posProjection.w // .vector2f(1, -1)
         let uv = (ndc + 1) / 2
         return uv // .fract()
     }
@@ -34,7 +49,7 @@ extension SGMatrix {
 }
 
 struct ImmersiveView: View {
-    @State private var metalMap = MetalMap(width: 1024, height: 1024)
+    @State private var metalMap = MetalMap(width: 512, height: 512)
 
     var body: some View {
         RealityView { content in
@@ -54,8 +69,8 @@ struct ImmersiveView: View {
 //                    $0.sampleVector4f(texcoord: uv)
                     $0.image(defaultValue: .vector4fZero,
                              texcoord: uv,
-                             uaddressmode: .constant,
-                             vaddressmode: .constant,
+                             uaddressmode: .periodic,
+                             vaddressmode: .periodic,
                              filtertype: .linear)
                 }
                 return geometrySwitchCameraIndex(mono: image(left), left: image(left), right: image(right))
@@ -166,19 +181,19 @@ struct ImmersiveView: View {
 //                let color = SGColor(mapValue.xyz)
 //                let image = SGTexture.texture(contentsOf: Bundle.main.url(forResource: "CustomUVChecker_byValle_1K", withExtension: "png")!)
                 let image = SGTexture.texture(contentsOf: Bundle.main.url(forResource: "arisu-checker", withExtension: "png")!)
-                let color: SGColor = image.image(defaultValue: .transparentBlack, texcoord: mapValue.xy, uaddressmode: .constant, vaddressmode: .constant, filtertype: .linear)
+                let color: SGColor = image.image(defaultValue: .transparentBlack, texcoord: mapValue.xy, uaddressmode: .periodic, vaddressmode: .periodic, filtertype: .linear)
                 let uvColor: SGColor = .color3f(mapValue.x, mapValue.y, .float(0))
-                let shift = SGVector.position(space: .world).x.subtract(.float(0.375)).range(inlow: .float(-0.000001), inhigh: .float(0.000001), gamma: .float(1), outlow: .float(0), outhigh: .float(1))
+                let shift = ShaderGraphCoder.geometrySwitchCameraIndex(mono: SGVector.position(space: .world), left: SGVector.position(space: .world), right: SGVector.position(space: .world)).x.subtract(.float(0.375)).range(inlow: .float(-0.00001), inhigh: .float(0.00001), gamma: .float(1), outlow: .float(0), outhigh: .float(1))
 
 //                return try! await ShaderGraphMaterial(surface: unlitSurface(
 //                    color: .color3f(shift, .float(0), .float(0)),
 //                    applyPostProcessToneMap: false))
 
-                return try! await ShaderGraphMaterial(surface: unlitSurface(
-                    color: (color.a * mapValue.w).ifGreater(.float(0.05), trueResult: (uvColor + color.rgb) / 2, falseResult: .black),
-                    opacity: (color.a * mapValue.w).max(.float(0.15)),
-                    applyPostProcessToneMap: false,
-                ))
+//                return try! await ShaderGraphMaterial(surface: unlitSurface(
+//                    color: (color.a * mapValue.w).ifGreater(.float(0.05), trueResult: (uvColor + color.rgb) / 2, falseResult: .black),
+//                    opacity: (color.a * mapValue.w).max(.float(0.15)),
+//                    applyPostProcessToneMap: false,
+//                ))
                 return try! await ShaderGraphMaterial(surface: pbrSurface(
                     baseColor: color.rgb,
                     emissiveColor: .black,
@@ -186,10 +201,17 @@ struct ImmersiveView: View {
                     roughness: .float(0.2),
                     metallic: .float(0),
                     specular: .float(0.5),
-                    opacity: (color.a * mapValue.w).max(.float(0.1)),
+                    opacity: .float(1),//(color.a * mapValue.w).max(.float(0.1)),
                     clearcoat: .float(0)))
             }()])
             content.add(cube)
+
+            let cube2 = cube.clone(recursive: true)
+            cube2.position += [0.5, 0, 0.1]
+            content.add(cube2)
+            let cube3 = cube.clone(recursive: true)
+            cube3.position += [1.0, 0, 0.2]
+            content.add(cube3)
 
             content.add({
                 let e = Entity()
