@@ -218,18 +218,14 @@ final class MetalMap {
         let shiftForR = deviceAnchorCameraTransformShift.right
         cameraTransformL.columns.3 += cameraRight4 * shiftForL.x + cameraUp4 * shiftForL.y + cameraForward4 * shiftForL.z
         cameraTransformR.columns.3 += cameraRight4 * shiftForR.x + cameraUp4 * shiftForR.y + cameraForward4 * shiftForR.z
-        var projection0FixedZ = projection0
-//        projection0FixedZ[2][2] = -1
-        var projection1FixedZ = projection1
-//        projection1FixedZ[2][2] = -1
         var uniforms = Uniforms(
             cameraTransform: cameraTransform,
             cameraTransformL: cameraTransformL,
             cameraTransformR: cameraTransformR,
-            projection0: projection0FixedZ,
-            projection1: projection1FixedZ,
-            projection0Inverse: projection0FixedZ.inverse,
-            projection1Inverse: projection1FixedZ.inverse,
+            projection0: projection0,
+            projection1: projection1,
+            projection0Inverse: projection0.inverse,
+            projection1Inverse: projection1.inverse,
         )
 
         guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }
