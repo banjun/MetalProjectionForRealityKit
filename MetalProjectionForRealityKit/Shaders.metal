@@ -74,13 +74,13 @@ static float4 uvRefractionAndReflection(float3 rayOrigin,
                                         const device uint32_t *indices,
                                         const device int &indicesCount) {
     int sinkMask = 1;
-    float eta = 1;// 1 / 1.49;
-    float F0 = 0.04;
+    float eta = 1 / 1.49;
+    float F0 = 0.12; //0.04;
     float attenuation = 1;
     // search sink surface.
     // assuming cube-ish shape.
     // bounce on front -> bounce on back * 0-2 times -> bounce on sink surface
-    for (int bounce = 0; bounce < 2; ++bounce) {
+    for (int bounce = 0; bounce < 5; ++bounce) {
         auto minDistance = float(INFINITY);
         auto minDiff = float3(INFINITY);
         int3 minMask = int3(0);
@@ -110,7 +110,7 @@ static float4 uvRefractionAndReflection(float3 rayOrigin,
                 // nearest hit is sink. conclude on the sink surface
                 return float4((minIntersection.point.x - 0.5) * 4 + 0.5,
                               (minIntersection.point.y - 1.25) * 4 + 0.5, 0,
-                              1); //attenuation); // TODO: use baricentric uv
+                              attenuation); // TODO: use baricentric uv
             }
             if (bounce == 0 && minIntersection.onFront) {
                 // refract into inside

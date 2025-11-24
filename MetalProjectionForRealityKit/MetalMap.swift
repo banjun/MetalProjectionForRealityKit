@@ -119,7 +119,7 @@ final class MetalMap {
             let ltb: SIMD3<Float> = [-1, +1, -1]
             let rtb: SIMD3<Float> = [+1, +1, -1]
             return [lbf, rbf, ltf, rtf, lbb, rbb, ltb, rtb]
-                .map {Vertex(position: $0 * SIMD3<Float>(0.125, 0.125, 0.250) + SIMD3<Float>(0.5, 1.25, -0.55),
+                .map {Vertex(position: $0 * SIMD3<Float>(0.125, 0.125, 0.030) + SIMD3<Float>(0.5, 1.25, -0.55),
                              mask: ($0.z == Float(-1)) ? 1 : 0)} // mask=1: sink
         }()
         let meshIndices: [UInt32] = [
