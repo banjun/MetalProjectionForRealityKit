@@ -10,7 +10,6 @@ import SwiftUI
 @main
 struct MetalLightingApp: App {
     @State private var appModel = AppModel()
-    @State private var metalMap = MetalMap()
 
     var body: some Scene {
         WindowGroup {
