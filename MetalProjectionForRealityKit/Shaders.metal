@@ -132,55 +132,6 @@ static float4 uvRefractionAndReflection(float3 rayOrigin,
     return float4(0, 0, 0, 0);
 }
 
-static float4x4 inverse4x4(float4x4 m) {
-    float a00 = m[0][0], a01 = m[0][1], a02 = m[0][2], a03 = m[0][3];
-    float a10 = m[1][0], a11 = m[1][1], a12 = m[1][2], a13 = m[1][3];
-    float a20 = m[2][0], a21 = m[2][1], a22 = m[2][2], a23 = m[2][3];
-    float a30 = m[3][0], a31 = m[3][1], a32 = m[3][2], a33 = m[3][3];
-
-    // 2x2 の小行列式をまとめて計算
-    float b00 = a00*a11 - a01*a10;
-    float b01 = a00*a12 - a02*a10;
-    float b02 = a00*a13 - a03*a10;
-    float b03 = a01*a12 - a02*a11;
-    float b04 = a01*a13 - a03*a11;
-    float b05 = a02*a13 - a03*a12;
-    float b06 = a20*a31 - a21*a30;
-    float b07 = a20*a32 - a22*a30;
-    float b08 = a20*a33 - a23*a30;
-    float b09 = a21*a32 - a22*a31;
-    float b10 = a21*a33 - a23*a31;
-    float b11 = a22*a33 - a23*a32;
-
-    // 行列式
-    float det = b00*b11 - b01*b10 + b02*b09 + b03*b08 - b04*b07 + b05*b06;
-
-    // 逆行列の計算（余因子 / det）
-    float4x4 inv;
-    inv[0][0] = +( a11 * b11 - a12 * b10 + a13 * b09) / det;
-    inv[0][1] = -( a01 * b11 - a02 * b10 + a03 * b09) / det;
-    inv[0][2] = +( a31 * b05 - a32 * b04 + a33 * b03) / det;
-    inv[0][3] = -( a21 * b05 - a22 * b04 + a23 * b03) / det;
-
-    inv[1][0] = -( a10 * b11 - a12 * b08 + a13 * b07) / det;
-    inv[1][1] = +( a00 * b11 - a02 * b08 + a03 * b07) / det;
-    inv[1][2] = -( a30 * b05 - a32 * b02 + a33 * b01) / det;
-    inv[1][3] = +( a20 * b05 - a22 * b02 + a23 * b01) / det;
-
-    inv[2][0] = +( a10 * b10 - a11 * b08 + a13 * b06) / det;
-    inv[2][1] = -( a00 * b10 - a01 * b08 + a03 * b06) / det;
-    inv[2][2] = +( a30 * b04 - a31 * b02 + a33 * b00) / det;
-    inv[2][3] = -( a20 * b04 - a21 * b02 + a23 * b00) / det;
-
-    inv[3][0] = -( a10 * b09 - a11 * b07 + a12 * b06) / det;
-    inv[3][1] = +( a00 * b09 - a01 * b07 + a02 * b06) / det;
-    inv[3][2] = -( a30 * b03 - a31 * b01 + a32 * b00) / det;
-    inv[3][3] = +( a20 * b03 - a21 * b01 + a22 * b00) / det;
-
-    return inv;
-}
-
-
 [[kernel]]
 void draw(texture2d<float, access::write> outTexture0 [[texture(0)]],
           texture2d<float, access::write> outTexture1 [[texture(1)]],
@@ -189,69 +140,36 @@ void draw(texture2d<float, access::write> outTexture0 [[texture(0)]],
           const device uint32_t *indices [[buffer(2)]],
           const device int &indicesCount [[buffer(3)]],
           uint2 pixelCoord [[thread_position_in_grid]]) {
+
     auto size = uint2(outTexture0.get_width(), outTexture0.get_height());
     if (any(size != uint2(outTexture1.get_width(), outTexture1.get_height()))) { return; }
     if (any(pixelCoord >= size)) { return; }
-
-    auto cameraTransform = uniforms.cameraTransform;
-    auto cameraCenterPosition = cameraTransform[3].xyz;
-    float4x4 projectionInverses[2] = {
-        uniforms.projection0Inverse,
-        uniforms.projection1Inverse
-    };
 
     auto uv = (float2(pixelCoord) + 0.5) / float2(size);
     // screen space [-1, +1]
     auto ndc = uv * 2 - 1;
     ndc.y *= -1;
-    // normalized device coordinate, homogeneous 2->4
-    auto ndc4 = float4(ndc.x, ndc.y, 1, 1);
-    // view space
-    float4 pixelCoordInViews[] = {
-        projectionInverses[0] * ndc4,
-        projectionInverses[1] * ndc4,
-    };
     texture2d<float, access::write> outTextures[] = {outTexture0, outTexture1};
 
-    float4 ndcCenter = float4(0, 0, -1, 1);
-    float4 viewOrigins[2] = {
-        projectionInverses[0] * ndcCenter,
-        projectionInverses[1] * ndcCenter
-    };
-    viewOrigins[0] /= viewOrigins[0].w;
-    viewOrigins[1] /= viewOrigins[1].w;
-
-    float4x4 projections[2] = { uniforms.projection0, uniforms.projection1 };
-
-    float4x4 cameraTransforms[2] = {
+    float4x4 cameraTransforms[] = {
         uniforms.cameraTransformL,
         uniforms.cameraTransformR,
     };
-    float3 cameraPositions[2] = {
-        cameraTransforms[0][3].xyz,
-        cameraTransforms[1][3].xyz
+    float3 cameraPositions[] = {
+        uniforms.cameraTransformL[3].xyz,
+        uniforms.cameraTransformR[3].xyz
     };
-    
+    float4x4 projectionInverses[] = {
+        uniforms.projection0Inverse,
+        uniforms.projection1Inverse,
+    };
 
     for (int vid = 0; vid < 2; ++vid) {
-        auto pixelCoordInView = pixelCoordInViews[vid];
-        auto outTexture = outTextures[vid];
-        auto viewDirectionInView = normalize(pixelCoordInView.xyz / pixelCoordInView.w);
-        // world space
-//        auto cameraPosition = cameraPositions[vid];
-//        auto cameraTransform = cameraTransforms[vid];
-        auto viewDirection = (cameraTransforms[vid] * float4(viewDirectionInView, 0)).xyz;
-//        auto viewDirection = normalize(cameraTransform[0].xyz * viewDirectionInView.x +
-//                                       cameraTransform[1].xyz * viewDirectionInView.y +
-//                                       cameraTransform[2].xyz * viewDirectionInView.z);
-        auto worldOrigin = (cameraTransforms[vid] * viewOrigins[vid]).xyz;
+        auto ndc4 = float4(ndc.x, ndc.y, 1, 1);
+        auto pView4 = projectionInverses[vid] * ndc4;
+        auto viewDirectionInView = pView4.xyz / pView4.w;
+        auto viewDirectionInWorld = normalize((cameraTransforms[vid] * float4(viewDirectionInView, 0)).xyz);
 
-//        outTexture.write(colorHit(cameraPosition, viewDirection, vertices, indices, indicesCount), pixelCoord);
-        auto outProjection = projections[vid] * inverse4x4(cameraTransforms[vid]) * float4(cameraPositions[vid] + viewDirection, 1);
-        auto outNDC = outProjection.xy / outProjection.w;
-        outNDC.y *= -1;
-        auto outUV = (outNDC.xy + 1) / 2;
-        auto outPixelCoord = uint2(outUV * float2(size) + 0.5);
-        outTexture.write(uvRefractionAndReflection(cameraPositions[vid], viewDirection, vertices, indices, indicesCount), outPixelCoord);
+        outTextures[vid].write(uvRefractionAndReflection(cameraPositions[vid], viewDirectionInWorld, vertices, indices, indicesCount), pixelCoord);
     }
 }

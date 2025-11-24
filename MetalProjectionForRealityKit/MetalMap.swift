@@ -53,12 +53,22 @@ final class MetalMap {
         }
     }
 
+    // see also: https://stackoverflow.com/questions/78664948/exactly-where-is-worldtrackingprovider-querydeviceanchor-attached-in-visionos?utm_source=chatgpt.com
+    struct DeviceAnchorCameraTransformShift {
+        var left: SIMD3<Float>
+        var right: SIMD3<Float>
+        // ipd: it maybe be distance between hardware cameras
+        // sfhitY, shiftZ: derived from my experimentations. should be refined.
+        init(ipd: Float = 0.064, shiftY: Float = -0.0261, shiftZ: Float = -0.0212) {
+            left = .init(-ipd / 2, shiftY, shiftZ)
+            right =  .init(ipd / 2, shiftY, shiftZ)
+        }
+    }
+
 #if targetEnvironment(simulator)
-    var ipd: Float = 0;
-    var near: Float = 0;
+    var deviceAnchorCameraTransformShift: DeviceAnchorCameraTransformShift = .init(ipd: 0, shiftY: 0, shiftZ: 0)
 #else
-    var ipd: Float = 0.063; // remove hard code
-    var near: Float = 0;
+    var deviceAnchorCameraTransformShift: DeviceAnchorCameraTransformShift = .init()
 #endif
 
     private var arkitSession: ARKitSession? {
@@ -159,7 +169,7 @@ final class MetalMap {
             self.worldTracker = worldTracker
             return
         }
-        guard let deviceAnchor = worldTracker.queryDeviceAnchor(atTimestamp: CACurrentMediaTime() + 0.1) else { return }
+        guard let deviceAnchor = worldTracker.queryDeviceAnchor(atTimestamp: CACurrentMediaTime() + 0.01) else { return }
         // using hard coded value, because we cannot get at runtime, as the only way to get them is from CompsitorLayer Drawable that cannot run simultaneously with ImmersiveView with RealityView.
 #if targetEnvironment(simulator)
         let projection0 = simd_float4x4([
@@ -168,6 +178,12 @@ final class MetalMap {
             [0.0, 0.0, 0.0, -1.0],
             [0.0, 0.0, 0.1, 0.0],
         ])
+//        let projection0 = simd_float4x4([
+//            [0.70956117, 2.7048769e-05, 0.0, 0.00025395412],
+//            [1.6707818e-06, 0.8844015, 0.0, 6.786168e-06],
+//            [-0.26731065, -0.08808379, 0.0, -1.0000936],
+//            [0.0, 0.0, 0.09691928, 0.0],
+//        ])
         let projection1 = projection0
 #else
         let projection0 = simd_float4x4([
@@ -188,11 +204,20 @@ final class MetalMap {
                                                   cameraTransform.columns.0.y,
                                                   cameraTransform.columns.0.z,
                                                   0))
-        let cameraPos4 = cameraTransform.columns.3
+        let cameraUp4 = normalize(SIMD4<Float>(cameraTransform.columns.1.x,
+                                                  cameraTransform.columns.1.y,
+                                                  cameraTransform.columns.1.z,
+                                                  0))
+        let cameraForward4 = normalize(SIMD4<Float>(cameraTransform.columns.2.x,
+                                                  cameraTransform.columns.2.y,
+                                                  cameraTransform.columns.2.z,
+                                                  0))
         var cameraTransformL = cameraTransform
         var cameraTransformR = cameraTransform
-        cameraTransformL.columns.3 = cameraPos4 - cameraRight4 * (ipd / 2)
-        cameraTransformR.columns.3 = cameraPos4 + cameraRight4 * (ipd / 2)
+        let shiftForL = deviceAnchorCameraTransformShift.left
+        let shiftForR = deviceAnchorCameraTransformShift.right
+        cameraTransformL.columns.3 += cameraRight4 * shiftForL.x + cameraUp4 * shiftForL.y + cameraForward4 * shiftForL.z
+        cameraTransformR.columns.3 += cameraRight4 * shiftForR.x + cameraUp4 * shiftForR.y + cameraForward4 * shiftForR.z
         var projection0FixedZ = projection0
 //        projection0FixedZ[2][2] = -1
         var projection1FixedZ = projection1
@@ -205,8 +230,6 @@ final class MetalMap {
             projection1: projection1FixedZ,
             projection0Inverse: projection0FixedZ.inverse,
             projection1Inverse: projection1FixedZ.inverse,
-            ipd: ipd,
-            near: near,
         )
 
         guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }

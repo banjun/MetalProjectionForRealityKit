@@ -2,20 +2,91 @@ import SwiftUI
 import RealityKit
 import ShaderGraphCoder
 
+extension SGMatrix {
+    func multiply(_ in2: SGVector) -> SGVector {
+        let in1 = self
+        return if SGDataType.matrix4d.matches(self) && SGDataType.vector4f.matches(in2) {
+            SGVector(source: .nodeOutput(SGNode(
+                nodeType: "ND_multiply_matrix44_vector4",
+                inputs: [
+                    .init(name: "in1", dataType: SGDataType.matrix4d, connection: in1),
+                    .init(name: "in2", dataType: SGDataType.vector4f, connection: in2),
+                ],
+                outputs: [.init(dataType: SGDataType.vector4f)])))
+        } else {
+            fatalError()
+        }
+    }
+}
+
 extension SGVector {
     static func screenUV(cameraTransform: SGMatrix, cameraTransformL: SGMatrix, cameraTransformR: SGMatrix, cameraProjection0: SGMatrix, cameraProjection1: SGMatrix) -> SGVector {
-//    }
-//    static func screenUV(cameraTransform: SGMatrix, cameraProjection0: SGMatrix, cameraProjection1: SGMatrix) -> SGVector {
-        let posWorld = SGVector.position(space: .world)
-        let posWorld4 = SGVector.vector4f(posWorld.x, posWorld.y, posWorld.z, .float(1))
-        // proj = P * V * posWorld, V = CameraTransform^-1. use camera index to switch P for left/right eye
-        let posCameraC = posWorld4.transformMatrix(mat: cameraTransform.invertMatrix())
-        let posCameraL = posWorld4.transformMatrix(mat: cameraTransformL.invertMatrix())
-        let posCameraR = posWorld4.transformMatrix(mat: cameraTransformR.invertMatrix())
-        let posProjectionC = posCameraC.transformMatrix(mat: cameraProjection0)
-        let posProjectionL = posCameraL.transformMatrix(mat: cameraProjection0)
-        let posProjectionR = posCameraR.transformMatrix(mat: cameraProjection1)
-        let posProjection = ShaderGraphCoder.geometrySwitchCameraIndex(mono: posProjectionC, left: posProjectionL, right: posProjectionR)
+        let viewDirection = SGVector.viewDirection(space: .world)
+        let viewDirection4 = SGVector.vector4f(viewDirection.x, viewDirection.y, viewDirection.z, .float(0))
+
+        let viewDirectionInViewBackC = viewDirection4.transformMatrix(mat: cameraTransform.invertMatrix()).xyz
+        let viewDirectionInViewBackL = viewDirection4.transformMatrix(mat: cameraTransformL.invertMatrix()).xyz
+        let viewDirectionInViewBackR = viewDirection4.transformMatrix(mat: cameraTransformR.invertMatrix()).xyz
+
+        let z_proj = SGScalar.float(-1.0);
+        let scaleC = z_proj / viewDirectionInViewBackC.z
+        let scaleL = z_proj / viewDirectionInViewBackL.z
+        let scaleR = z_proj / viewDirectionInViewBackR.z
+        let p_view_checkC = viewDirectionInViewBackC * scaleC
+        let p_view_checkL = viewDirectionInViewBackL * scaleL
+        let p_view_checkR = viewDirectionInViewBackR * scaleR
+        let p_view_homo_checkC = SGVector.vector4f(p_view_checkC.x, p_view_checkC.y, p_view_checkC.z, .float(1))
+        let p_view_homo_checkL = SGVector.vector4f(p_view_checkL.x, p_view_checkL.y, p_view_checkL.z, .float(1))
+        let p_view_homo_checkR = SGVector.vector4f(p_view_checkR.x, p_view_checkR.y, p_view_checkR.z, .float(1))
+        let clipCoord_check = ShaderGraphCoder.geometrySwitchCameraIndex(
+            mono: p_view_homo_checkC.transformMatrix(mat: cameraProjection0),
+            left: p_view_homo_checkL.transformMatrix(mat: cameraProjection0),
+            right: p_view_homo_checkR.transformMatrix(mat: cameraProjection1),
+        )
+        let ndc = clipCoord_check.xy / clipCoord_check.w
+        let uv = (ndc + 1) / 2
+        return uv
+
+        let t = SGScalar.float(1)
+
+        let fx0 = cameraProjection0.multiply(.vector4f(1, 0, 0, 0)).x
+        let fx1 = cameraProjection1.multiply(.vector4f(1, 0, 0, 0)).x
+        let fy0 = cameraProjection0.multiply(.vector4f(0, 1, 0, 0)).y
+        let fy1 = cameraProjection1.multiply(.vector4f(0, 1, 0, 0)).y
+        let cx0 = cameraProjection0.multiply(.vector4f(0, 0, 1, 0)).x
+        let cx1 = cameraProjection1.multiply(.vector4f(0, 0, 1, 0)).x
+        let cy0 = cameraProjection0.multiply(.vector4f(0, 0, 1, 0)).y
+        let cy1 = cameraProjection1.multiply(.vector4f(0, 0, 1, 0)).y
+
+        let zScaleC = -1.0 / viewDirectionInViewBackC.z
+        let zScaleL = -1.0 / viewDirectionInViewBackL.z
+        let zScaleR = -1.0 / viewDirectionInViewBackR.z
+        let projectedViewDirectionC = viewDirectionInViewBackC * zScaleC
+        let projectedViewDirectionL = viewDirectionInViewBackL * zScaleL
+        let projectedViewDirectionR = viewDirectionInViewBackR * zScaleR
+        // 3. NDC 座標 (ndc_check) の逆算
+        //    元の順変換: viewDirectionInView.x = (ndc.x - cx) / fx
+        //    逆変換:      ndc_check.x = viewDirectionInView.x * fx + cx
+        let ndc_ = ShaderGraphCoder.geometrySwitchCameraIndex(
+            mono: projectedViewDirectionC.xy * .vector2f(fx0, fy0) + .vector2f(cx0, cy0),
+            left: projectedViewDirectionL.xy * .vector2f(fx0, fy0) + .vector2f(cx0, cy0),
+            right: projectedViewDirectionR.xy * .vector2f(fx1, fy1) + .vector2f(cx1, cy1),
+        )
+        let uv_ = (ndc_ + 1) / 2
+        return uv_
+
+        let viewDirectionCameraC = viewDirection4.transformMatrix(mat: cameraTransform.invertMatrix()).xyz.normalize().multiply(t)
+        let viewDirectionCameraL = viewDirection4.transformMatrix(mat: cameraTransformL.invertMatrix()).xyz.normalize().multiply(t)
+        let viewDirectionCameraR = viewDirection4.transformMatrix(mat: cameraTransformR.invertMatrix()).xyz.normalize().multiply(t)
+        let posProjectionViaVDC = SGVector.vector4f(viewDirectionCameraC.x, viewDirectionCameraC.y, viewDirectionCameraC.z, .float(1)).transformMatrix(mat: cameraProjection0)
+        let posProjectionViaVDL = SGVector.vector4f(viewDirectionCameraL.x, viewDirectionCameraL.y, viewDirectionCameraL.z, .float(1)).transformMatrix(mat: cameraProjection0)
+        let posProjectionViaVDR = SGVector.vector4f(viewDirectionCameraR.x, viewDirectionCameraR.y, viewDirectionCameraR.z, .float(1)).transformMatrix(mat: cameraProjection1)
+        let posProjectionViaVD = ShaderGraphCoder.geometrySwitchCameraIndex(mono: posProjectionViaVDC, left: posProjectionViaVDL, right: posProjectionViaVDR)
+        let ndcViaVD2 = posProjectionViaVD.xy / posProjectionViaVD.w
+        let uvViaVD = (ndcViaVD2 + 1) / 2
+        return uvViaVD
+
+
         // perspective division (/w) is needed to cancel perspective tiling. that's why the homogeneous vector posWorld4
 //        let alpha = SGScalar.float(-0.09691928) // projection.columns.2.w
 //        let beta = SGScalar.zero
@@ -32,19 +103,24 @@ extension SGVector {
 //        // w = clip.w は方向ベースなので 1 でもよい（距離依存パース無視）
 //        let ndc = clip.xy / clip.w
 
-        let ndc = posProjection.xy / posProjection.w // .vector2f(1, -1)
-        let uv = (ndc + 1) / 2
-        return uv // .fract()
+//        let ndc = posProjection.xy / posProjection.w // .vector2f(1, -1)
+//        let uv = (ndc + 1) / 2
+//        return uv // .fract()
     }
 }
 extension SGMatrix {
     static func decodeTexturePixel(texture: SGTexture, offset: SGVector, stride: SGVector = .vector2f(1, 0)) -> SGMatrix {
         .matrix4d(
-            texture.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: offset + stride * 0),
-            texture.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: offset + stride * 1),
-            texture.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: offset + stride * 2),
-            texture.pixel(filter: .nearest, defaultValue: .vector4fZero, texcoord: offset + stride * 3),
+            SGVector.decodeTexturePixel(texture: texture, texcoord: offset + stride * 0),
+            SGVector.decodeTexturePixel(texture: texture, texcoord: offset + stride * 1),
+            SGVector.decodeTexturePixel(texture: texture, texcoord: offset + stride * 2),
+            SGVector.decodeTexturePixel(texture: texture, texcoord: offset + stride * 3),
         )
+    }
+}
+extension SGVector {
+    static func decodeTexturePixel(texture: SGTexture, defaultValue: SGVector = .vector4fZero, texcoord: SGVector) -> SGVector {
+        texture.pixel(filter: .nearest, defaultValue: defaultValue, texcoord: texcoord)
     }
 }
 
@@ -216,13 +292,13 @@ struct ImmersiveView: View {
             content.add({
                 let e = Entity()
                 e.position = [0, 0.7, -0.5];
-                e.components.set(ViewAttachmentComponent(rootView: VStack {
-                    @Bindable var model = metalMap
-                    Text("IPD = \(model.ipd, format: .number.precision(.fractionLength(3)))")
-                    Slider(value: $metalMap.ipd, in: 0...0.1)
-                    Text("zNear = \(model.near, format: .number.precision(.fractionLength(5)))")
-                    Slider(value: $metalMap.near, in: 0...1)
-                }))
+//                e.components.set(ViewAttachmentComponent(rootView: VStack {
+//                    @Bindable var model = metalMap
+//                    Text("IPD = \(model.ipd, format: .number.precision(.fractionLength(3)))")
+//                    Slider(value: $metalMap.ipd, in: 0...0.1)
+//                    Text("zNear = \(model.near, format: .number.precision(.fractionLength(5)))")
+//                    Slider(value: $metalMap.near, in: 0...1)
+//                }))
                 return e
             }())
         }

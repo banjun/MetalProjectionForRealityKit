@@ -8,8 +8,6 @@ struct Uniforms {
     simd_float4x4 projection1;
     simd_float4x4 projection0Inverse;
     simd_float4x4 projection1Inverse;
-    float ipd;
-    float near;
 };
 
 struct Vertex {
