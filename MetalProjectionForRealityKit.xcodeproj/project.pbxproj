@@ -9,16 +9,25 @@
 /* Begin PBXBuildFile section */
 		EA00AB492EB8D4480025B081 /* ShaderGraphCoder in Frameworks */ = {isa = PBXBuildFile; productRef = EA00AB482EB8D4480025B081 /* ShaderGraphCoder */; };
 		EA00AB4B2EB8D5EC0025B081 /* BridgingHeader.h in Sources */ = {isa = PBXBuildFile; fileRef = EA00AB4A2EB8D5E50025B081 /* BridgingHeader.h */; };
+		EA10E7882ED4650E00E3CCD0 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = EA10E7872ED4650E00E3CCD0 /* RealityKitContent */; };
 		EA20CC702EB8B4E000555555 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = EA20CC6F2EB8B4E000555555 /* RealityKitContent */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		EA00AB4A2EB8D5E50025B081 /* BridgingHeader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BridgingHeader.h; sourceTree = "<group>"; };
+		EA10E7852ED4650E00E3CCD0 /* MetalLighting.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MetalLighting.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA20CC6A2EB8B4E000555555 /* MetalProjectionForRealityKit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MetalProjectionForRealityKit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA20CC6E2EB8B4E000555555 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		EA10E7942ED4651000E3CCD0 /* Exceptions for "MetalLighting" folder in "MetalLighting" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = EA10E7842ED4650E00E3CCD0 /* MetalLighting */;
+		};
 		EA20CC7A2EB8B4E200555555 /* Exceptions for "MetalProjectionForRealityKit" folder in "MetalProjectionForRealityKit" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -39,6 +48,14 @@
 /* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		EA10E7862ED4650E00E3CCD0 /* MetalLighting */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EA10E7942ED4651000E3CCD0 /* Exceptions for "MetalLighting" folder in "MetalLighting" target */,
+			);
+			path = MetalLighting;
+			sourceTree = "<group>";
+		};
 		EA20CC6C2EB8B4E000555555 /* MetalProjectionForRealityKit */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -51,6 +68,14 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		EA10E7822ED4650E00E3CCD0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EA10E7882ED4650E00E3CCD0 /* RealityKitContent in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EA20CC672EB8B4E000555555 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -69,6 +94,7 @@
 				EA00AB4A2EB8D5E50025B081 /* BridgingHeader.h */,
 				EA20CC6C2EB8B4E000555555 /* MetalProjectionForRealityKit */,
 				EA20CC6D2EB8B4E000555555 /* Packages */,
+				EA10E7862ED4650E00E3CCD0 /* MetalLighting */,
 				EA20CC6B2EB8B4E000555555 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -77,6 +103,7 @@
 			isa = PBXGroup;
 			children = (
 				EA20CC6A2EB8B4E000555555 /* MetalProjectionForRealityKit.app */,
+				EA10E7852ED4650E00E3CCD0 /* MetalLighting.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -92,6 +119,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		EA10E7842ED4650E00E3CCD0 /* MetalLighting */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EA10E7952ED4651000E3CCD0 /* Build configuration list for PBXNativeTarget "MetalLighting" */;
+			buildPhases = (
+				EA10E7812ED4650E00E3CCD0 /* Sources */,
+				EA10E7822ED4650E00E3CCD0 /* Frameworks */,
+				EA10E7832ED4650E00E3CCD0 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				EA10E7862ED4650E00E3CCD0 /* MetalLighting */,
+			);
+			name = MetalLighting;
+			packageProductDependencies = (
+				EA10E7872ED4650E00E3CCD0 /* RealityKitContent */,
+			);
+			productName = MetalLighting;
+			productReference = EA10E7852ED4650E00E3CCD0 /* MetalLighting.app */;
+			productType = "com.apple.product-type.application";
+		};
 		EA20CC692EB8B4E000555555 /* MetalProjectionForRealityKit */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = EA20CC7B2EB8B4E200555555 /* Build configuration list for PBXNativeTarget "MetalProjectionForRealityKit" */;
@@ -123,9 +173,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2610;
+				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2610;
 				TargetAttributes = {
+					EA10E7842ED4650E00E3CCD0 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 					EA20CC692EB8B4E000555555 = {
 						CreatedOnToolsVersion = 26.1;
 					};
@@ -149,11 +202,19 @@
 			projectRoot = "";
 			targets = (
 				EA20CC692EB8B4E000555555 /* MetalProjectionForRealityKit */,
+				EA10E7842ED4650E00E3CCD0 /* MetalLighting */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		EA10E7832ED4650E00E3CCD0 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EA20CC682EB8B4E000555555 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -164,6 +225,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		EA10E7812ED4650E00E3CCD0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EA20CC662EB8B4E000555555 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -175,6 +243,68 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		EA10E7922ED4651000E3CCD0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FPZK4WRGW7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(TARGET_NAME)/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.banjun.DMXController.MetalLighting;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = BridgingHeader.h;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		EA10E7932ED4651000E3CCD0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FPZK4WRGW7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(TARGET_NAME)/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.banjun.DMXController.MetalLighting;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = BridgingHeader.h;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
 		EA20CC7C2EB8B4E200555555 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -359,6 +489,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		EA10E7952ED4651000E3CCD0 /* Build configuration list for PBXNativeTarget "MetalLighting" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EA10E7922ED4651000E3CCD0 /* Debug */,
+				EA10E7932ED4651000E3CCD0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		EA20CC652EB8B4E000555555 /* Build configuration list for PBXProject "MetalProjectionForRealityKit" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -395,6 +534,10 @@
 			isa = XCSwiftPackageProductDependency;
 			package = EA00AB472EB8D4480025B081 /* XCRemoteSwiftPackageReference "ShaderGraphCoder" */;
 			productName = ShaderGraphCoder;
+		};
+		EA10E7872ED4650E00E3CCD0 /* RealityKitContent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RealityKitContent;
 		};
 		EA20CC6F2EB8B4E000555555 /* RealityKitContent */ = {
 			isa = XCSwiftPackageProductDependency;
