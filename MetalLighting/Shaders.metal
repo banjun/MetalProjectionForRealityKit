@@ -18,7 +18,8 @@ VertexOut render_vertex(VertexIn in [[stage_in]],
                         const device VertexUniforms *uniforms [[buffer(1)]],
                         const uint vid [[instance_id]]) {
     auto uniform = uniforms[vid];
-    auto pWorld4 = float4(in.position, 1); // assuming in.position is in world pos
+    auto pModel4 = float4(in.position, 1); // assuming in.position is in model pos
+    auto pWorld4 = uniform.modelTransform * pModel4;
     auto pView4 = uniform.cameraTransformInverse * pWorld4;
     auto pClip4 = uniform.projection * pView4;
 

@@ -2,7 +2,6 @@
 
 /// MetalMap->Texture(blit)->RealityKit shader
 struct Uniforms {
-    simd_float4x4 cameraTransform;
     simd_float4x4 cameraTransformL;
     simd_float4x4 cameraTransformR;
     simd_float4x4 projection0;
@@ -12,6 +11,7 @@ struct Uniforms {
 };
 /// MetalMap->(vertex buffer)->vertex shader, as array, indexed by instance id for left/right eye
 struct VertexUniforms {
+    simd_float4x4 modelTransform;
     simd_float4x4 cameraTransform;
     simd_float4x4 cameraTransformInverse;
     simd_float4x4 projection;
