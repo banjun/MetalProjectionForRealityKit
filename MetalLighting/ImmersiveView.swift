@@ -65,7 +65,9 @@ struct ImmersiveView: View {
                                 )
                             }
                             let color = colors.reduce(SGColor.transparentBlack, +)
-                            return try! await ShaderGraphMaterial(surface: unlitSurface(color: color.rgb, opacity: color.a))
+                            var m = try! await ShaderGraphMaterial(surface: unlitSurface(color: color.rgb, opacity: color.a))
+                            m.faceCulling = .none
+                            return m
                         }()
                     ])
                     texView.position = [0, 0.5 + height / 2, -1]

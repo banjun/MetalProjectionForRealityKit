@@ -14,6 +14,7 @@ final class MetalMap {
     private let vertexIndex: Int
     private let vertexUniformsIndex: Int
     private let fragmentUniformsIndex: Int
+    private let baseColorTextureIndex: Int
 
     private let uniformsTexture: LowLevelTexture
     private let uniformsMetalTexture: MTLTexture
@@ -21,6 +22,9 @@ final class MetalMap {
     let uniformsTextureResource: TextureResource
 
     let pixelFormat: MTLPixelFormat = .rgba16Float
+
+    private let depthPixelFormat: MTLPixelFormat = .depth16Unorm
+    private let depthTexture: MTLTexture
 
     var llMesh: LowLevelMesh? {
         didSet {
@@ -34,7 +38,7 @@ final class MetalMap {
     }
     private var worldTracker: WorldTrackingProvider?
 
-    init(width: Int = 32, height: Int = 32, viewCount: Int = DeviceDependants.viewCount, vertexIndex: Int = 0, vertexUniformsIndex: Int = 1, fragmentUniformsIndex: Int = 2) {
+    init(width: Int = 32, height: Int = 32, viewCount: Int = DeviceDependants.viewCount, vertexIndex: Int = 0, vertexUniformsIndex: Int = 1, fragmentUniformsIndex: Int = 2, baseColorTextureIndex: Int = 0) {
         commandQueue = device.makeCommandQueue()!
         llTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount)) // arrayLength: 2 for left/right eye
         metalTexture = llTexture.read()
@@ -43,11 +47,22 @@ final class MetalMap {
         self.vertexIndex = vertexIndex
         self.vertexUniformsIndex = vertexUniformsIndex
         self.fragmentUniformsIndex = fragmentUniformsIndex
+        self.baseColorTextureIndex = baseColorTextureIndex
 
         uniformsTexture = try! LowLevelTexture(descriptor: .init(pixelFormat: .rgba32Float, width: 4, height: 5)) // rgba for 1 row of simd_float4x4, total simd_float4x4 is rgba x 4, thus width = 4, and height 4 for camera center, transformL, transformR, projection0, projection1.
         uniformsMetalTexture = uniformsTexture.read()
         uniformsTextureResource = try! .init(from: uniformsTexture)
         uniformsBuffer = device.makeBuffer(length: MemoryLayout<simd_float4x4>.size * 5)!
+
+        let depthDescriptor = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: depthPixelFormat,
+            width: metalTexture.width,
+            height: metalTexture.height,
+            mipmapped: false
+        )
+        depthDescriptor.usage = [.renderTarget]
+        depthDescriptor.storageMode = .private
+        depthTexture = device.makeTexture(descriptor: depthDescriptor)!
     }
 
     private func createRenderPipelineState() {
@@ -75,6 +90,7 @@ final class MetalMap {
             }
             d.fragmentFunction = render_fragment
             d.colorAttachments[0].pixelFormat = pixelFormat
+            d.depthAttachmentPixelFormat = depthPixelFormat
             return d
         }())
     }
@@ -103,7 +119,7 @@ final class MetalMap {
         )
         var vertexUniforms: [VertexUniforms] = cameraTransformAndProjections.map {
             VertexUniforms(modelTransform: entity.transform.matrix,
-                            cameraTransform: $0.transform,
+                           cameraTransform: $0.transform,
                            cameraTransformInverse: $0.transform.inverse,
                            projection: $0.projection,
                            projectionInverse: $0.projection.inverse)
@@ -117,6 +133,11 @@ final class MetalMap {
             d.colorAttachments[0]?.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
             d.colorAttachments[0]?.loadAction = .clear
             d.colorAttachments[0]?.storeAction = .store
+
+            d.depthAttachment.texture = depthTexture
+            d.depthAttachment.loadAction = .clear
+            d.depthAttachment.storeAction = .dontCare
+            d.depthAttachment.clearDepth = 0
             return d
         }()) {
             defer {renderEncoder.endEncoding()}
@@ -124,6 +145,24 @@ final class MetalMap {
             renderEncoder.setVertexBuffer(llMesh.read(bufferIndex: 0, using: commandBuffer), offset: 0, index: vertexIndex)
             renderEncoder.setVertexBytes(&vertexUniforms, length: MemoryLayout<VertexUniforms>.stride * vertexUniforms.count, index: vertexUniformsIndex)
             renderEncoder.setFragmentBytes(&fragmentUniforms, length: MemoryLayout<FragmentUniforms>.stride, index: fragmentUniformsIndex)
+            if let baseColorTexture = ((entity as? ModelEntity)?.model!.materials.compactMap {$0 as? PhysicallyBasedMaterial}.first?.baseColor.texture) {
+                let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: baseColorTexture.resource.pixelFormat, width: baseColorTexture.resource.width, height: baseColorTexture.resource.height, mipmapped: baseColorTexture.resource.mipmapLevelCount > 1)
+                desc.storageMode = .private
+                desc.usage = [.shaderRead, .shaderWrite]
+                let tex = renderPipelineState.device.makeTexture(descriptor: desc)!
+                try! baseColorTexture.resource.copy(to: tex)
+                renderEncoder.setFragmentTexture(tex, index: baseColorTextureIndex)
+
+                renderEncoder.setDepthStencilState(renderPipelineState.device.makeDepthStencilState(descriptor: {
+                    let d = MTLDepthStencilDescriptor()
+                    d.isDepthWriteEnabled = true
+                    d.depthCompareFunction = .greaterEqual
+                    return d
+                }()))
+                renderEncoder.setCullMode(.back) // just for performance, requires front facing = ccw (below)
+                renderEncoder.setFrontFacing(.counterClockwise)
+            }
+
             renderEncoder.drawIndexedPrimitives(type: .triangle, indexCount: llMesh.parts.reduce(into: 0) {$0 += $1.indexCount}, indexType: .uint32, indexBuffer: llMesh.readIndices(using: commandBuffer), indexBufferOffset: 0, instanceCount: vertexUniforms.count) // instanceCount: 2 for left/right projection (view id)
         }
 
