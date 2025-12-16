@@ -25,6 +25,7 @@ final class MetalMap {
 
     private let depthPixelFormat: MTLPixelFormat = .depth16Unorm
     private let depthTexture: MTLTexture
+    private let depthStencilState: MTLDepthStencilState
 
     var llMesh: LowLevelMesh? {
         didSet {
@@ -32,6 +33,8 @@ final class MetalMap {
         }
     }
     private var renderPipelineState: MTLRenderPipelineState?
+
+    private var materialTextureCache: [Entity.ID: MTLTexture] = [:]
 
     private var arkitSession: ARKitSession? {
         didSet {oldValue?.stop()}
@@ -63,6 +66,12 @@ final class MetalMap {
         depthDescriptor.usage = [.renderTarget]
         depthDescriptor.storageMode = .private
         depthTexture = device.makeTexture(descriptor: depthDescriptor)!
+        depthStencilState = device.makeDepthStencilState(descriptor: {
+            let d = MTLDepthStencilDescriptor()
+            d.isDepthWriteEnabled = true
+            d.depthCompareFunction = .greaterEqual
+            return d
+        }())!
     }
 
     private func createRenderPipelineState() {
@@ -145,22 +154,18 @@ final class MetalMap {
             renderEncoder.setVertexBuffer(llMesh.read(bufferIndex: 0, using: commandBuffer), offset: 0, index: vertexIndex)
             renderEncoder.setVertexBytes(&vertexUniforms, length: MemoryLayout<VertexUniforms>.stride * vertexUniforms.count, index: vertexUniformsIndex)
             renderEncoder.setFragmentBytes(&fragmentUniforms, length: MemoryLayout<FragmentUniforms>.stride, index: fragmentUniformsIndex)
-            if let baseColorTexture = ((entity as? ModelEntity)?.model!.materials.compactMap {$0 as? PhysicallyBasedMaterial}.first?.baseColor.texture) {
+            if let tex = materialTextureCache[entity.id] {
+                renderEncoder.setFragmentTexture(tex, index: baseColorTextureIndex)
+                renderEncoder.setDepthStencilState(depthStencilState)
+                renderEncoder.setCullMode(.back) // just for performance, requires front facing = ccw (below)
+                renderEncoder.setFrontFacing(.counterClockwise)
+            } else if let baseColorTexture = ((entity as? ModelEntity)?.model!.materials.compactMap {$0 as? PhysicallyBasedMaterial}.first?.baseColor.texture) {
                 let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: baseColorTexture.resource.pixelFormat, width: baseColorTexture.resource.width, height: baseColorTexture.resource.height, mipmapped: baseColorTexture.resource.mipmapLevelCount > 1)
                 desc.storageMode = .private
                 desc.usage = [.shaderRead, .shaderWrite]
                 let tex = renderPipelineState.device.makeTexture(descriptor: desc)!
                 try! baseColorTexture.resource.copy(to: tex)
-                renderEncoder.setFragmentTexture(tex, index: baseColorTextureIndex)
-
-                renderEncoder.setDepthStencilState(renderPipelineState.device.makeDepthStencilState(descriptor: {
-                    let d = MTLDepthStencilDescriptor()
-                    d.isDepthWriteEnabled = true
-                    d.depthCompareFunction = .greaterEqual
-                    return d
-                }()))
-                renderEncoder.setCullMode(.back) // just for performance, requires front facing = ccw (below)
-                renderEncoder.setFrontFacing(.counterClockwise)
+                materialTextureCache[entity.id] = tex
             }
 
             renderEncoder.drawIndexedPrimitives(type: .triangle, indexCount: llMesh.parts.reduce(into: 0) {$0 += $1.indexCount}, indexType: .uint32, indexBuffer: llMesh.readIndices(using: commandBuffer), indexBufferOffset: 0, instanceCount: vertexUniforms.count) // instanceCount: 2 for left/right projection (view id)
