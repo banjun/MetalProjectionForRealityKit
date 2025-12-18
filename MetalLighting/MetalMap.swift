@@ -65,6 +65,8 @@ final class MetalMap {
         )
         depthDescriptor.usage = [.renderTarget]
         depthDescriptor.storageMode = .private
+        depthDescriptor.textureType = .type2DArray
+        depthDescriptor.arrayLength = viewCount
         depthTexture = device.makeTexture(descriptor: depthDescriptor)!
         depthStencilState = device.makeDepthStencilState(descriptor: {
             let d = MTLDepthStencilDescriptor()
