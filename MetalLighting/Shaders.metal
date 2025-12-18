@@ -56,3 +56,61 @@ FragmentOut render_fragment(VertexOut in [[stage_in]],
     return out;
 }
 
+struct FullscreenIn {
+    float4 position [[position]];
+    uint vid [[render_target_array_index]];
+    float2 uv;
+};
+
+[[vertex]]
+FullscreenIn fullscreen_vertex(const uint vertex_id [[vertex_id]], const uint instance_id [[instance_id]]) {
+    float2 pos[3] = {
+        float2(-1, -1),
+        float2( 3, -1),
+        float2(-1,  3),
+    };
+    float2 uv[3] = {
+        float2(0, 1 - 0),
+        float2(2, 1 - 0),
+        float2(0, 1 - 2),
+    };
+    FullscreenIn o;
+    o.position = float4(pos[vertex_id], 0, 1);
+    o.uv = uv[vertex_id];
+    o.vid = instance_id;
+    return o;
+}
+
+[[fragment]]
+float4 bright_fragment(FullscreenIn in [[stage_in]],
+                       texture2d_array<float> scene [[texture(0)]]) {
+    auto threshold = 0.1;
+    auto boost = 4.0;
+    auto c = scene.sample(linearSampler, in.uv, in.vid).rgb;
+    auto luminance = dot(c, float3(0.2126, 0.7152, 0.0722));
+    return float4(luminance > threshold ? c * boost : 0.0, 1.0);
+}
+
+[[fragment]]
+float4 bloom_fragment(FullscreenIn in [[stage_in]],
+                      texture2d_array<float> bright [[texture(0)]],
+                      const device float2 &kawase_offset [[buffer(0)]]) {
+    auto c = float3(0.0);
+    auto weight = 1.0 / 4.0;
+    auto offset = kawase_offset;
+    c += bright.sample(linearSampler, in.uv + float2(-offset.x, -offset.y), in.vid).rgb * weight;
+    c += bright.sample(linearSampler, in.uv + float2(-offset.x, +offset.y), in.vid).rgb * weight;
+    c += bright.sample(linearSampler, in.uv + float2(+offset.x, -offset.y), in.vid).rgb * weight;
+    c += bright.sample(linearSampler, in.uv + float2(+offset.x, +offset.y), in.vid).rgb * weight;
+    return float4(c, 1);
+}
+
+[[fragment]]
+float4 composite_fragment(FullscreenIn in [[stage_in]],
+                          texture2d_array<float> scene [[texture(0)]],
+                          texture2d_array<float> bloom [[texture(1)]]) {
+    auto s = scene.sample(linearSampler, in.uv, in.vid).rgb;
+    auto b = bloom.sample(linearSampler, in.uv, in.vid).rgb;
+    auto intensity = 0.5;
+    return float4(s + b * intensity, 1);
+}
