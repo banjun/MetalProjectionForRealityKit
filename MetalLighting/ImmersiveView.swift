@@ -31,13 +31,16 @@ struct ImmersiveView: View {
                     // NOTE: adding ManipulationComponent will crash soon. why?
                     usdzLLEntity.components.set(CollisionComponent(shapes: [.generateSphere(radius: 0.1)], isStatic: true))
                     usdzLLEntity.components.set(InputTargetComponent(allowedInputTypes: .all))
-                    usdzLLEntity.components.set(GestureComponent(DragGesture(coordinateSpace3D: .worldReference).targetedToEntity(usdzLLEntity).updating($dragStartTransform) { value, state, transaction in
+                    usdzLLEntity.components.set(GestureComponent(DragGesture(coordinateSpace: .immersiveSpace).targetedToEntity(usdzLLEntity).updating($dragStartTransform) { value, state, transaction in
                         state = state ?? value.entity.transform
                         var t = state!
-                        t.translation += .init(value.translation3D)
+                        let location = value.convert(value.location3D, from: .global, to: .scene)
+                        let startLocation = value.convert(value.startLocation3D, from: .global, to: .scene)
+                        let translation = location - startLocation
                         if let pose = value.inputDevicePose3D, let startPose = value.startInputDevicePose3D {
-                            t.rotation = simd_quatf(pose.rotation.rotated(by: startPose.rotation.inverse).inverse) * t.rotation
+                            t.rotation = simd_quatf(pose.rotation.rotated(by: startPose.rotation.inverse)) * t.rotation
                         }
+                        t.translation += .init(translation)
                         value.entity.transform = t
                     }))
                     metalMap.llMesh = llImporter.mesh
@@ -71,7 +74,40 @@ struct ImmersiveView: View {
                         }()
                     ])
                     texView.position = [0, 0.5 + height / 2, -1]
+                    texView.isEnabled = false
                     return texView
+                }())
+
+                await root.addChild({
+                    @MainActor func screenUV() -> SGVector {
+                        // decode CameraTransform & projection matrices from texture in 4x3 pixels. each row encodes 1 matrix.
+                        let uniforms = SGTexture.texture(metalMap.uniformsTextureResource)
+                        let cameraTransformL = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 0))
+                        let cameraTransformR = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 1))
+                        let cameraProjection0 = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 2))
+                        let cameraProjection1 = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 3))
+                        return .screenUV(cameraTransformL: cameraTransformL, cameraTransformR: cameraTransformR, cameraProjection0: cameraProjection0, cameraProjection1: cameraProjection1)
+                    }
+                    @MainActor func projectedMap(textureArray: SGTexture, uv: SGVector) -> SGColor {
+                        let image: (Int) -> SGColor = {
+                            textureArray.image2DArrayColor4(index: .int($0), defaultValue: .transparentBlack, texcoord: uv, magFilter: .linear, minFilter: .linear, uWrapMode: .clampToEdge, vWrapMode: .clampToEdge, noFlipV: .int(1))
+                        }
+                        return geometrySwitchCameraIndex(mono: image(0), left: image(0), right: image(1))
+                    }
+                    @MainActor func projectedMap() -> SGColor {
+                        projectedMap(textureArray: .texture(metalMap.textureResource), uv: screenUV())
+                    }
+
+                    let screenMaterial: ShaderGraphMaterial = await {
+                        let mapValue = projectedMap()
+                        return try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb, opacity: .zero, applyPostProcessToneMap: false, hasPremultipliedAlpha: true))
+                    }()
+                    let screen = ModelEntity(mesh: .generatePlane(width: 20, height: 10), materials: [screenMaterial])
+                    screen.position = [0, 1.5, -0.10]
+//                    let head = AnchorEntity(.head) // anchoring to AnchorEntity causes projection error?
+//                    head.addChild(screen)
+//                    screen.isEnabled = true
+                    return screen
                 }())
             }
         }

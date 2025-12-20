@@ -18,3 +18,4 @@ extension SGTexture {
             outputs: [.init(dataType: SGDataType.color4f)])))
     }
 }
+
