@@ -5,6 +5,7 @@ import ShaderGraphCoder
 struct ImmersiveView: View {
     @State private var metalMap = MetalMap(width: 1024, height: 1024)
     @GestureState private var dragStartTransform: Transform?
+    private let modelSortGroup = ModelSortGroup(depthPass: .postPass)
 
     var body: some View {
         RealityView { content in
@@ -23,8 +24,10 @@ struct ImmersiveView: View {
                 defer {progress.removeFromParent()}
 
                 await root.addChild({
-                    let llImporter = try! await USDZLowLevelMeshImporter(usdz: ModelEntity(named: "ありす4"))
-                    let usdzLLEntity = try! llImporter.modelEntity()
+                    let usdzEntity = try! await ModelEntity(named: "ありす4")
+                    let llImporter = try! USDZLowLevelMeshImporter(usdz: usdzEntity)
+//                    let usdzLLEntity = try! llImporter.modelEntity()
+                    let usdzLLEntity = usdzEntity // NOTE: LowLevelMesh entity cannot be compatible with ModelSortGroup ???
                     usdzLLEntity.position = [0, 1, -0.5]
                     usdzLLEntity.transform.rotation = .init(angle: .pi, axis: [0, 1, 0])
                     usdzLLEntity.components.set(MetalMapSystem.Component(map: metalMap))
@@ -44,6 +47,7 @@ struct ImmersiveView: View {
                         value.entity.transform = t
                     }))
                     metalMap.llMesh = llImporter.mesh
+                    usdzLLEntity.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 1))
                     return usdzLLEntity
                 }())
                 defer {MetalMapSystem.registerSystem()}
@@ -100,14 +104,14 @@ struct ImmersiveView: View {
 
                     let screenMaterial: ShaderGraphMaterial = await {
                         let mapValue = projectedMap()
-                        return try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb, opacity: .zero, applyPostProcessToneMap: false, hasPremultipliedAlpha: true))
+                        var m = try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb, opacity: .zero, applyPostProcessToneMap: false, hasPremultipliedAlpha: true))
+                        m.faceCulling = .front
+                        return m
                     }()
-                    let screen = ModelEntity(mesh: .generatePlane(width: 20, height: 10), materials: [screenMaterial])
-                    screen.position = [0, 1.5, -0.10]
-//                    let head = AnchorEntity(.head) // anchoring to AnchorEntity causes projection error?
-//                    head.addChild(screen)
-//                    screen.isEnabled = true
-                    return screen
+                    let sphere = ModelEntity(mesh: .generateSphere(radius: 10000), materials: [screenMaterial])
+                    // model sort group could be used to invert depth order?
+                    sphere.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 999))
+                    return sphere
                 }())
             }
         }

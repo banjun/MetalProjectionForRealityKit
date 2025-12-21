@@ -41,7 +41,7 @@ VertexOut render_vertex(VertexIn in [[stage_in]],
 
 constexpr auto linearSampler = sampler(filter::linear,
                                        mip_filter::linear,
-                                       address::repeat);
+                                       address::clamp_to_edge);
 
 [[fragment]]
 FragmentOut render_fragment(VertexOut in [[stage_in]],
@@ -109,8 +109,8 @@ float4 bloom_fragment(FullscreenIn in [[stage_in]],
 float4 composite_fragment(FullscreenIn in [[stage_in]],
                           texture2d_array<float> scene [[texture(0)]],
                           texture2d_array<float> bloom [[texture(1)]]) {
-    auto s = scene.sample(linearSampler, in.uv, in.vid).rgb;
-    auto b = bloom.sample(linearSampler, in.uv, in.vid).rgb;
-    auto intensity = 0.5;
-    return float4(s + b * intensity, 1);
+    auto s = scene.sample(linearSampler, in.uv, in.vid);
+    auto b = bloom.sample(linearSampler, in.uv, in.vid);
+    auto intensity = 0.75;
+    return float4(s * 0 + b * intensity);
 }
