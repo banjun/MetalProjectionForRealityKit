@@ -55,7 +55,11 @@ enum RenderPassEncoderSettings {
         if let depthTexture {
             d.depthAttachment.texture = depthTexture
             d.depthAttachment.loadAction = .clear
+#if DEBUG
+            d.depthAttachment.storeAction = .store
+#else
             d.depthAttachment.storeAction = .dontCare
+#endif
             d.depthAttachment.clearDepth = 0
         }
         return d

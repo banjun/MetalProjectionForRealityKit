@@ -14,9 +14,14 @@ class ScenePassSetting {
     private var materialTextureCache: [Entity.ID: MTLTexture] = [:]
 
     convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat = .depth16Unorm, viewCount: Int) {
+        #if DEBUG
+        let usage: MTLTextureUsage = [.renderTarget, .shaderRead] // .shaderRead is just for debug. not needed for production
+        #else
+        let usage: MTLTextureUsage = [.renderTarget]
+        #endif
         self.init(device: device,
                   outTexture: RenderPassEncoderSettings.makeTexture(device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount),
-                  depthTexture: RenderPassEncoderSettings.makeTexture(device: device, width: width, height: height, pixelFormat: depthPixelFormat, usage: [.renderTarget], viewCount: viewCount))
+                  depthTexture: RenderPassEncoderSettings.makeTexture(device: device, width: width, height: height, pixelFormat: depthPixelFormat, usage: usage, viewCount: viewCount))
     }
     init(device: any MTLDevice, outTexture: any MTLTexture, depthTexture: any MTLTexture) {
         self.device = device

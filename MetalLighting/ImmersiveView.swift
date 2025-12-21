@@ -3,7 +3,8 @@ import RealityKit
 import ShaderGraphCoder
 
 struct ImmersiveView: View {
-    @State private var metalMap = MetalMap(width: 1024, height: 1024)
+    @Environment(AppModel.self) private var appModel
+    var metalMap: MetalMap {appModel.metalMap}
     @GestureState private var dragStartTransform: Transform?
     private let modelSortGroup = ModelSortGroup(depthPass: .postPass)
 

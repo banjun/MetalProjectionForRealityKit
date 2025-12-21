@@ -42,6 +42,9 @@ VertexOut render_vertex(VertexIn in [[stage_in]],
 constexpr auto linearSampler = sampler(filter::linear,
                                        mip_filter::linear,
                                        address::clamp_to_edge);
+constexpr auto nearestSampler = sampler(filter::nearest,
+                                        mip_filter::nearest,
+                                        address::clamp_to_edge);
 
 [[fragment]]
 FragmentOut render_fragment(VertexOut in [[stage_in]],
@@ -113,4 +116,16 @@ float4 composite_fragment(FullscreenIn in [[stage_in]],
     auto b = bloom.sample(linearSampler, in.uv, in.vid);
     auto intensity = 0.75;
     return float4(s * 0 + b * intensity);
+}
+
+[[fragment]]
+float4 copy(FullscreenIn in [[stage_in]],
+            texture2d_array<float> tex [[texture(0)]]) {
+    return tex.sample(nearestSampler, in.uv, in.vid);
+}
+[[fragment]]
+float4 copyDepthToColor(FullscreenIn in [[stage_in]],
+                        depth2d_array<float> depth [[texture(0)]]) {
+    auto d = depth.sample(nearestSampler, in.uv, in.vid);
+    return float4(float3(d), 1);
 }

@@ -4,7 +4,7 @@ class BloomPassSetting {
     let state: MTLRenderPipelineState
     let descriptorAndOutTextures: [(MTLRenderPassDescriptor, any MTLTexture)] // for ping-pong, i.e. loop over in->0->1->0->1...and then the last tex is final output (depends on loop length)
     let kawaseBlurOffsets: [SIMD2<Float>] = [1, 2, 4, 8, 16, 32]
-        .map {$0 / 1024 / 4 / .init(1, 9 / 16)}
+        .map {$0 / 1024 / 4 / .init(1, DeviceDependants.aspectRatio)}
 
     convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, viewCount: Int) {
         self.init(device: device,

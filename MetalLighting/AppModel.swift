@@ -18,4 +18,6 @@ class AppModel {
         case open
     }
     var immersiveSpaceState = ImmersiveSpaceState.closed
+
+    let metalMap = MetalMap(width: 1024, height: 1024)
 }

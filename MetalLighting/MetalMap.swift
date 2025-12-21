@@ -29,6 +29,17 @@ final class MetalMap {
     }
     private var worldTracker: WorldTrackingProvider?
 
+    private let debugLLTexture: LowLevelTexture
+    private let debugMetalTexture: any MTLTexture
+    let debugTextureResource: TextureResource
+    var debugBlit: DebugBlit?
+    enum DebugBlit: String, Hashable, Identifiable, CaseIterable {
+        case scene, depth, bright, bloom, composite
+        var id: String {rawValue}
+    }
+    private let copyPass: CopyPassSetting
+    private let depthToColorPass: DepthToColorPassSetting
+
     init(device: MTLDevice = MTLCreateSystemDefaultDevice()!, pixelFormat: MTLPixelFormat = .rgba16Float, width: Int = 32, height: Int = 32, viewCount: Int = DeviceDependants.viewCount) {
         commandQueue = device.makeCommandQueue()!
 
@@ -44,6 +55,12 @@ final class MetalMap {
         brightPass = .init(device: device, width: width / 2, height: height / 2, pixelFormat: pixelFormat, viewCount: viewCount)
         bloomPass = .init(device: device, width: width / 4, height: height / 4, pixelFormat: pixelFormat, viewCount: viewCount)
         compositePass = .init(device: device, outTexture: llTexture.read())
+
+        debugLLTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount, textureUsage: []))
+        debugMetalTexture = debugLLTexture.read()
+        debugTextureResource = try! .init(from: debugLLTexture)
+        copyPass = .init(device: device, outTexture: debugMetalTexture)
+        depthToColorPass = .init(device: device, outTexture: debugMetalTexture)
     }
 
     func draw(_ entity: Entity) {
@@ -80,6 +97,22 @@ final class MetalMap {
                 uniformsBuffer.contents().copyMemory(from: u.baseAddress!, byteCount: MemoryLayout<Uniforms>.size)
             }
             blit.copy(from: uniformsBuffer, sourceOffset: 0, sourceBytesPerRow: MemoryLayout<simd_float4x4>.size, sourceBytesPerImage: uniformsBuffer.length, sourceSize: MTLSize(width: 4, height: 5, depth: 1), to: uniformsMetalTexture, destinationSlice: 0, destinationLevel: 0, destinationOrigin: .init())
+        }
+
+        // copyPass.encode requires shaderRead, but blit does not require it
+        func blitToDebugTexture(from: any MTLTexture) {
+            if let blit = commandBuffer.makeBlitCommandEncoder() {
+                defer {blit.endEncoding()}
+                blit.copy(from: from, to: debugMetalTexture)
+            }
+        }
+        switch debugBlit {
+        case .none: break
+        case .scene?: blitToDebugTexture(from: scenePass.outTexture)
+        case .depth?: depthToColorPass.encode(in: commandBuffer, inTexture: scenePass.depthTexture)
+        case .bright?: copyPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
+        case .bloom?: copyPass.encode(in: commandBuffer, inTexture: blooomOut)
+        case .composite?: blitToDebugTexture(from: compositePass.outTexture)
         }
     }
 }
