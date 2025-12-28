@@ -23,6 +23,7 @@ public final class MetalMap {
     }
     private let brightPass: BrightPassSetting
     private let bloomPass: BloomPassSetting
+    private let volumeLightPass: VolumeLightPassSetting
     private let compositePass: CompositePassSetting
 
     private var arkitSession: ARKitSession? {
@@ -33,9 +34,9 @@ public final class MetalMap {
     private let debugLLTexture: LowLevelTexture
     private let debugMetalTexture: any MTLTexture
     public let debugTextureResource: TextureResource
-    public var debugBlit: DebugBlit?
+    public var debugBlit: DebugBlit? = .volumeLight
     public enum DebugBlit: String, Hashable, Identifiable, CaseIterable {
-        case scene, depth, bright, bloom, composite
+        case scene, depth, bright, bloom, volumeLight, composite
         public var id: String {rawValue}
     }
     private let copyPass: CopyPassSetting
@@ -55,6 +56,7 @@ public final class MetalMap {
         scenePass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount)
         brightPass = .init(device: device, width: width / 2, height: height / 2, pixelFormat: pixelFormat, viewCount: viewCount)
         bloomPass = .init(device: device, width: width / 4, height: height / 4, pixelFormat: pixelFormat, viewCount: viewCount)
+        volumeLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount)
         compositePass = .init(device: device, outTexture: llTexture.read())
 
         debugLLTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount, textureUsage: []))
@@ -78,22 +80,31 @@ public final class MetalMap {
         defer {commandBuffer.commit()}
 
         let cameraTransformAndProjections = DeviceDependants.cameraTransformAndProjections(deviceAnchor: deviceAnchor)
+        var uniforms = Uniforms(
+            cameraTransformL: cameraTransformAndProjections.first!.transform,
+            cameraTransformR: cameraTransformAndProjections.last!.transform,
+            projection0: cameraTransformAndProjections.first!.projection,
+            projection1: cameraTransformAndProjections.last!.projection,
+            projection0Inverse: cameraTransformAndProjections.first!.projection.inverse,
+            projection1Inverse: cameraTransformAndProjections.last!.projection.inverse,
+        )
+
+        let lights: [VolumeSpotLight] = [
+            .init(position: .init(0, 3, -1), direction: .init(0, -1, 0), angleCos: cos(.pi / 32), color: .init(1, 1, 1), intensity: 1),
+            .init(position: .init(-0.5, 3, -1), direction: .init(0, -1, 0), angleCos: cos(.pi / 32), color: .init(0.5, 0.5, 1), intensity: 1),
+            .init(position: .init(-1.0, 3, -1), direction: .init(0, -1, 0), angleCos: cos(.pi / 32), color: .init(0.5, 0.5, 1), intensity: 1),
+            .init(position: .init(0.5, 3, -1), direction: .init(0, -1, 0), angleCos: cos(.pi / 32), color: .init(1, 0.5, 0.5), intensity: 1),
+            .init(position: .init(1.0, 3, -1), direction: .init(0, -1, 0), angleCos: cos(.pi / 32), color: .init(1, 0.5, 0.5), intensity: 1),
+        ]
 
         scenePass.encode(in: commandBuffer, cameraTransformAndProjections: cameraTransformAndProjections, entity: entity)
         brightPass.encode(in: commandBuffer, inTexture: scenePass.outTexture)
         let bloomOut = bloomPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
-        compositePass.encode(in: commandBuffer, inTextures: [scenePass.outTexture, bloomOut])
+        volumeLightPass.encode(in: commandBuffer, inDepthTexture: scenePass.depthTexture, uniforms: uniforms, lights: lights)
+        compositePass.encode(in: commandBuffer, inTextures: [scenePass.outTexture, bloomOut, volumeLightPass.outTexture])
 
         if let blit = commandBuffer.makeBlitCommandEncoder() {
             defer {blit.endEncoding()}
-            var uniforms = Uniforms(
-                cameraTransformL: cameraTransformAndProjections.first!.transform,
-                cameraTransformR: cameraTransformAndProjections.last!.transform,
-                projection0: cameraTransformAndProjections.first!.projection,
-                projection1: cameraTransformAndProjections.last!.projection,
-                projection0Inverse: cameraTransformAndProjections.first!.projection.inverse,
-                projection1Inverse: cameraTransformAndProjections.last!.projection.inverse,
-            )
             withUnsafeBytes(of: &uniforms) { u in
                 uniformsBuffer.contents().copyMemory(from: u.baseAddress!, byteCount: MemoryLayout<Uniforms>.size)
             }
@@ -113,6 +124,7 @@ public final class MetalMap {
         case .depth?: depthToColorPass.encode(in: commandBuffer, inTexture: scenePass.depthTexture)
         case .bright?: copyPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
         case .bloom?: copyPass.encode(in: commandBuffer, inTexture: bloomOut)
+        case .volumeLight?: blitToDebugTexture(from: volumeLightPass.outTexture)
         case .composite?: blitToDebugTexture(from: compositePass.outTexture)
         }
     }

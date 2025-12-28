@@ -109,16 +109,6 @@ float4 bloom_fragment(FullscreenIn in [[stage_in]],
 }
 
 [[fragment]]
-float4 composite_fragment(FullscreenIn in [[stage_in]],
-                          texture2d_array<float> scene [[texture(0)]],
-                          texture2d_array<float> bloom [[texture(1)]]) {
-    auto s = scene.sample(linearSampler, in.uv, in.vid);
-    auto b = bloom.sample(linearSampler, in.uv, in.vid);
-    auto intensity = 0.75;
-    return float4(s * 0 + b * intensity);
-}
-
-[[fragment]]
 float4 copy(FullscreenIn in [[stage_in]],
             texture2d_array<float> tex [[texture(0)]]) {
     return tex.sample(nearestSampler, in.uv, in.vid);
@@ -128,4 +118,58 @@ float4 copyDepthToColor(FullscreenIn in [[stage_in]],
                         depth2d_array<float> depth [[texture(0)]]) {
     auto d = depth.sample(nearestSampler, in.uv, in.vid);
     return float4(float3(d), 1);
+}
+
+[[fragment]]
+float4 volumeLight_fragment(FullscreenIn in [[stage_in]],
+                            depth2d_array<float> depth [[texture(0)]],
+                            const device Uniforms &uniforms [[buffer(0)]],
+                            const device VolumeSpotLight *lights [[buffer(1)]],
+                            const device int &lightCount [[buffer(2)]]) {
+    simd_float4x4 projections[] = {uniforms.projection0, uniforms.projection1};
+    simd_float4x4 projectionInverses[] = {uniforms.projection0Inverse, uniforms.projection1Inverse};
+    simd_float4x4 cameraTransforms[] = {uniforms.cameraTransformL, uniforms.cameraTransformR};
+    auto projection = projections[in.vid];
+    auto projectionInverse = projectionInverses[in.vid];
+    auto cameraTransform = cameraTransforms[in.vid];
+
+    auto ndc = in.uv * 2 - 1;
+    auto ndc4 = float4(ndc.x, -ndc.y, 1, 1);
+    auto pView4 = projectionInverse * ndc4;
+    auto viewDirectionInView = pView4.xyz / pView4.w;
+    auto viewDirectionInWorld = normalize((cameraTransform * float4(viewDirectionInView, 0)).xyz);
+
+    auto t = 0.0;
+    auto cameraPos = cameraTransform.columns[3].xyz;
+    auto stepSize = 0.1;
+    auto MAX_STEPS = 128.0;
+    auto maxDistance = 5.0;
+    auto color = float3(0);
+
+    for (int i = 0; i < MAX_STEPS; i++) {
+        auto pos = cameraPos + viewDirectionInWorld * maxDistance * i / MAX_STEPS;
+        for (int l = 0; l < lightCount; l++) {
+            auto light = lights[l];
+            auto posFromLight = pos - light.position;
+            auto angle = dot(normalize(posFromLight), light.direction);
+            if (angle > light.angleCos) {
+                auto distanceAttenuation = 1 / length_squared(posFromLight);
+                color += light.color * light.intensity * distanceAttenuation / MAX_STEPS;
+            }
+        }
+    }
+    return float4(color, 1);
+}
+
+[[fragment]]
+float4 composite_fragment(FullscreenIn in [[stage_in]],
+                          texture2d_array<float> scene [[texture(0)]],
+                          texture2d_array<float> bloom [[texture(1)]],
+                          texture2d_array<float> light [[texture(2)]]) {
+    auto s = scene.sample(linearSampler, in.uv, in.vid);
+    auto b = bloom.sample(linearSampler, in.uv, in.vid);
+    auto l = light.sample(linearSampler, in.uv, in.vid);
+    auto bloomIntensity = 0.25;
+    auto lightIntensity = 0.5;
+    return float4(s * 0 + b * bloomIntensity + l * lightIntensity);
 }

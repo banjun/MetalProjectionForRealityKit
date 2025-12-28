@@ -29,3 +29,12 @@ struct Vertex {
     simd_float3 tangent; // optional?
     simd_float3 bitangent; // optional?
 };
+
+struct VolumeSpotLight {
+    simd_float3 position;
+    simd_float3 direction;
+    float angleCos;
+    simd_float3 color;
+    float intensity;
+    // TODO: use DMX texture
+};
