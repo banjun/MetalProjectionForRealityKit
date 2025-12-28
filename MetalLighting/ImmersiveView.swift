@@ -1,6 +1,7 @@
 import SwiftUI
 import RealityKit
 import ShaderGraphCoder
+import MetalProjection
 
 struct ImmersiveView: View {
     @Environment(AppModel.self) private var appModel

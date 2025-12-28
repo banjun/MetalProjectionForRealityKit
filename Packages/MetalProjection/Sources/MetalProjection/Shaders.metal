@@ -1,5 +1,5 @@
 #include <metal_stdlib>
-#import "Shaders.h"
+#include "../MetalProjectionBridgingHeader/include/Shaders.h"
 using namespace metal;
 
 struct VertexIn {

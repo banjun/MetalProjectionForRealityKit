@@ -7,8 +7,8 @@
 
 import SwiftUI
 import RealityKit
-import RealityKitContent
 import ShaderGraphCoder
+import MetalProjection
 
 struct ContentView: View {
     @Environment(AppModel.self) private var appModel

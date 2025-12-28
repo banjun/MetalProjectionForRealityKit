@@ -1,13 +1,15 @@
 import RealityKit
 
-struct MetalMapSystem: System {
-    struct Component: RealityKit.Component {
-        var map: MetalMap?
+public struct MetalMapSystem: System {
+    public struct Component: RealityKit.Component {
+        public var map: MetalMap?
+        public init(map: MetalMap? = nil) {
+            self.map = map
+        }
     }
-    struct MetalMapModelComponent: RealityKit.Component {}
-    init(scene: Scene) {
+    public init(scene: Scene) {
     }
-    func update(context: SceneUpdateContext) {
+    public func update(context: SceneUpdateContext) {
         for e in context.entities(matching: .init(where: .has(Component.self)), updatingSystemWhen: .rendering) {
             let c = e.components[Component.self]!
             guard let map = c.map else { continue }

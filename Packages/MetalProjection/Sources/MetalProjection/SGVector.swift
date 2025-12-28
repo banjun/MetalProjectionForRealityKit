@@ -1,6 +1,19 @@
 import ShaderGraphCoder
+import RealityKit
 
-extension SGVector {
+public extension SGVector {
+    static func screenUV(uniformsTextureResource: TextureResource) -> SGVector {
+        // decode CameraTransform & projection matrices from texture in 4x3 pixels. each row encodes 1 matrix.
+        let uniforms = SGTexture.texture(uniformsTextureResource)
+        let cameraTransformL = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 0))
+        let cameraTransformR = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 1))
+        let cameraProjection0 = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 2))
+        let cameraProjection1 = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 3))
+        return .screenUV(cameraTransformL: cameraTransformL, cameraTransformR: cameraTransformR, cameraProjection0: cameraProjection0, cameraProjection1: cameraProjection1)
+    }
+}
+
+public extension SGVector {
     static func screenUV(cameraTransformL: SGMatrix, cameraTransformR: SGMatrix, cameraProjection0: SGMatrix, cameraProjection1: SGMatrix) -> SGVector {
         let viewDirection = SGVector.viewDirection(space: .world)
         let viewDirection4 = SGVector.vector4f(viewDirection.x, viewDirection.y, viewDirection.z, .float(0))
@@ -23,7 +36,7 @@ extension SGVector {
         return uv
     }
 }
-extension SGMatrix {
+public extension SGMatrix {
     static func decodeTexturePixel(texture: SGTexture, offset: SGVector, stride: SGVector = .vector2f(1, 0)) -> SGMatrix {
         .matrix4d(
             SGVector.decodeTexturePixel(texture: texture, texcoord: offset + stride * 0),
@@ -33,7 +46,7 @@ extension SGMatrix {
         )
     }
 }
-extension SGVector {
+public extension SGVector {
     static func decodeTexturePixel(texture: SGTexture, defaultValue: SGVector = .vector4fZero, texcoord: SGVector) -> SGVector {
         texture.pixel(filter: .nearest, defaultValue: defaultValue, texcoord: texcoord)
     }

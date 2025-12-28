@@ -1,11 +1,12 @@
 import Metal
 import RealityKit
+import MetalProjectionBridgingHeader
 
 class ScenePassSetting {
     private let device: any MTLDevice
     private(set) var state: MTLRenderPipelineState?
     let descriptor: MTLRenderPassDescriptor
-    var llMesh: LowLevelMesh? {
+    @MainActor var llMesh: LowLevelMesh? {
         didSet {createState()}
     }
     let outTexture: any MTLTexture
@@ -36,17 +37,17 @@ class ScenePassSetting {
         }())!
     }
 
-    func createState() {
+    @MainActor func createState() {
         state = llMesh.map {RenderPassEncoderSettings.makeRenderPipelineState(device: device, vertexFunction: "render_vertex", fragmentFunction: "render_fragment", llMesh: $0, pixelFormat: outTexture.pixelFormat, depthPixelFormat: depthTexture.pixelFormat)}
     }
 
-    func encode(in commandBuffer: any MTLCommandBuffer, cameraTransformAndProjections: [(transform: simd_float4x4, projection: simd_float4x4)], entity: Entity) {
+    @MainActor func encode(in commandBuffer: any MTLCommandBuffer, cameraTransformAndProjections: [(transform: simd_float4x4, projection: simd_float4x4)], entity: Entity) {
         guard let llMesh, let state, let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
         defer {encoder.endEncoding()}
         encoder.setRenderPipelineState(state)
 
         var vertexUniforms: [VertexUniforms] = cameraTransformAndProjections.map {
-            VertexUniforms(modelTransform: entity.transform.matrix,
+            VertexUniforms(modelTransform: entity.convert(transform: .identity, to: nil).matrix,
                            cameraTransform: $0.transform,
                            cameraTransformInverse: $0.transform.inverse,
                            projection: $0.projection,
@@ -57,12 +58,15 @@ class ScenePassSetting {
         encoder.setVertexBuffer(llMesh.read(bufferIndex: 0, using: commandBuffer), offset: 0, index: 0)
         encoder.setVertexBytes(&vertexUniforms, length: MemoryLayout<VertexUniforms>.stride * vertexUniforms.count, index: 1)
         encoder.setFragmentBytes(&fragmentUniforms, length: MemoryLayout<FragmentUniforms>.stride, index: 2)
+        let materials = (entity as? ModelEntity)?.model!.materials ?? []
         if let tex = materialTextureCache[entity.id] {
             encoder.setFragmentTexture(tex, index: 0)
             encoder.setDepthStencilState(depthStencilState)
             encoder.setCullMode(.back) // just for performance, requires front facing = ccw (below)
             encoder.setFrontFacing(.counterClockwise)
-        } else if let baseColorTexture = ((entity as? ModelEntity)?.model!.materials.compactMap {$0 as? PhysicallyBasedMaterial}.first?.baseColor.texture) {
+        } else if let baseColorTexture = (
+            materials.compactMap {($0 as? PhysicallyBasedMaterial)}.first?.baseColor.texture
+            ?? materials.compactMap {$0 as? UnlitMaterial}.first?.color.texture) {
             let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: baseColorTexture.resource.pixelFormat, width: baseColorTexture.resource.width, height: baseColorTexture.resource.height, mipmapped: baseColorTexture.resource.mipmapLevelCount > 1)
             desc.storageMode = .private
             desc.usage = [.shaderRead, .shaderWrite]

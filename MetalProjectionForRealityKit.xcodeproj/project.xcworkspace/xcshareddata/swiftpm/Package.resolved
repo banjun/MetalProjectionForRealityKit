@@ -1,6 +1,15 @@
 {
-  "originHash" : "bd95cc00f3195ff657e17af1e29203e485d7b133ab46deb67b28e267acffdecc",
+  "originHash" : "07359d7d40a4c2c3a68222790e13fad09ebd5007aa144b166227fdbd2f0a2057",
   "pins" : [
+    {
+      "identity" : "metalcompilerplugin",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/schwa/MetalCompilerPlugin",
+      "state" : {
+        "revision" : "36c761478a8e3fb934acf8ef2db4696af95069b4",
+        "version" : "0.1.5"
+      }
+    },
     {
       "identity" : "shadergraphcoder",
       "kind" : "remoteSourceControl",

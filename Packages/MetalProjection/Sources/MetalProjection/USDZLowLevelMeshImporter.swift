@@ -2,15 +2,15 @@ import Foundation
 import RealityKit
 import Metal
 
-struct USDZLowLevelMeshImporter {
-    var mesh: LowLevelMesh
-    var materials: [any RealityKit.Material]
+public struct USDZLowLevelMeshImporter {
+    public var mesh: LowLevelMesh
+    public var materials: [any RealityKit.Material]
 
-    func modelEntity() throws -> ModelEntity {
+    @MainActor func modelEntity() throws -> ModelEntity {
         ModelEntity(mesh: try MeshResource(from: mesh), materials: materials)
     }
 
-    init(usdz: ModelEntity, descriptor: LowLevelMesh.Descriptor = Vertex.descriptor) throws {
+    @MainActor public init(usdz: ModelEntity, descriptor: LowLevelMesh.Descriptor = Vertex.descriptor) throws {
         let model = usdz.model!
         let usdzParts = model.mesh.contents.models.flatMap {$0.parts}
         let usdzLLMesh = try LowLevelMesh(descriptor: descriptor)
@@ -59,24 +59,24 @@ struct USDZLowLevelMeshImporter {
         }
     }
 
-    struct Vertex {
-        var position: SIMD3<Float>
-        var uv: SIMD2<Float>?
-        var normal: SIMD3<Float>?
-        var tangent: SIMD3<Float>?
-        var bitangent: SIMD3<Float>?
+    public struct Vertex {
+        public var position: SIMD3<Float>
+        public var uv: SIMD2<Float>?
+        public var normal: SIMD3<Float>?
+        public var tangent: SIMD3<Float>?
+        public var bitangent: SIMD3<Float>?
 
-        static var vertexAttributes: [LowLevelMesh.Attribute] = [
+        public static let vertexAttributes: [LowLevelMesh.Attribute] = [
             .init(semantic: .position, format: .float3, offset: MemoryLayout<Self>.offset(of: \.position)!),
             .init(semantic: .uv0, format: .float2, offset: MemoryLayout<Self>.offset(of: \.uv)!),
             .init(semantic: .normal, format: .float3, offset: MemoryLayout<Self>.offset(of: \.normal)!),
             .init(semantic: .tangent, format: .float3, offset: MemoryLayout<Self>.offset(of: \.tangent)!),
             .init(semantic: .bitangent, format: .float3, offset: MemoryLayout<Self>.offset(of: \.bitangent)!),
         ]
-        static var vertexLayouts: [LowLevelMesh.Layout] = [
+        public static let vertexLayouts: [LowLevelMesh.Layout] = [
             .init(bufferIndex: 0, bufferStride: MemoryLayout<Self>.stride)
         ]
-        static var descriptor: LowLevelMesh.Descriptor {
+        public static var descriptor: LowLevelMesh.Descriptor {
             var desc = LowLevelMesh.Descriptor()
             desc.vertexAttributes = Vertex.vertexAttributes
             desc.vertexLayouts = Vertex.vertexLayouts

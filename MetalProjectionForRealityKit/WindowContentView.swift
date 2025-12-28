@@ -1,6 +1,5 @@
 import SwiftUI
 import RealityKit
-import RealityKitContent
 
 struct WindowContentView: View {
     @Environment(AppModel.self) private var appModel

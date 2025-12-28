@@ -3,20 +3,21 @@ import RealityKit
 import ARKit
 import QuartzCore
 import Observation
+import MetalProjectionBridgingHeader
 
 @Observable
-final class MetalMap {
+public final class MetalMap {
     private let commandQueue: MTLCommandQueue
     private let llTexture: LowLevelTexture // type2DArray, [left, right]
-    let textureResource: TextureResource // type2DArray, [left, right]
+    public let textureResource: TextureResource // type2DArray, [left, right]
     private let uniformsTexture: LowLevelTexture
     private let uniformsMetalTexture: MTLTexture
     private let uniformsBuffer: any MTLBuffer
-    let uniformsTextureResource: TextureResource
+    public let uniformsTextureResource: TextureResource
 
     // scene -> post effects (bright, bloom) -> composite -> llTexture -> textureResource
     private let scenePass: ScenePassSetting
-    var llMesh: LowLevelMesh? {
+    @MainActor public var llMesh: LowLevelMesh? {
         get {scenePass.llMesh}
         set {scenePass.llMesh = newValue}
     }
@@ -31,16 +32,16 @@ final class MetalMap {
 
     private let debugLLTexture: LowLevelTexture
     private let debugMetalTexture: any MTLTexture
-    let debugTextureResource: TextureResource
-    var debugBlit: DebugBlit?
-    enum DebugBlit: String, Hashable, Identifiable, CaseIterable {
+    public let debugTextureResource: TextureResource
+    public var debugBlit: DebugBlit?
+    public enum DebugBlit: String, Hashable, Identifiable, CaseIterable {
         case scene, depth, bright, bloom, composite
-        var id: String {rawValue}
+        public var id: String {rawValue}
     }
     private let copyPass: CopyPassSetting
     private let depthToColorPass: DepthToColorPassSetting
 
-    init(device: MTLDevice = MTLCreateSystemDefaultDevice()!, pixelFormat: MTLPixelFormat = .rgba16Float, width: Int = 32, height: Int = 32, viewCount: Int = DeviceDependants.viewCount) {
+    @MainActor public init(device: MTLDevice = MTLCreateSystemDefaultDevice()!, pixelFormat: MTLPixelFormat = .rgba16Float, width: Int = 32, height: Int = 32, viewCount: Int = DeviceDependants.viewCount) {
         commandQueue = device.makeCommandQueue()!
 
         llTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount, textureUsage: [.renderTarget])) // arrayLength: 2 for left/right eye
@@ -63,7 +64,7 @@ final class MetalMap {
         depthToColorPass = .init(device: device, outTexture: debugMetalTexture)
     }
 
-    func draw(_ entity: Entity) {
+    @MainActor func draw(_ entity: Entity) {
         guard let worldTracker else {
             let arkitSession = ARKitSession()
             let worldTracker = WorldTrackingProvider()
@@ -80,8 +81,8 @@ final class MetalMap {
 
         scenePass.encode(in: commandBuffer, cameraTransformAndProjections: cameraTransformAndProjections, entity: entity)
         brightPass.encode(in: commandBuffer, inTexture: scenePass.outTexture)
-        let blooomOut = bloomPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
-        compositePass.encode(in: commandBuffer, inTextures: [scenePass.outTexture, blooomOut])
+        let bloomOut = bloomPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
+        compositePass.encode(in: commandBuffer, inTextures: [scenePass.outTexture, bloomOut])
 
         if let blit = commandBuffer.makeBlitCommandEncoder() {
             defer {blit.endEncoding()}
@@ -111,7 +112,7 @@ final class MetalMap {
         case .scene?: blitToDebugTexture(from: scenePass.outTexture)
         case .depth?: depthToColorPass.encode(in: commandBuffer, inTexture: scenePass.depthTexture)
         case .bright?: copyPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
-        case .bloom?: copyPass.encode(in: commandBuffer, inTexture: blooomOut)
+        case .bloom?: copyPass.encode(in: commandBuffer, inTexture: bloomOut)
         case .composite?: blitToDebugTexture(from: compositePass.outTexture)
         }
     }

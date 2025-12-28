@@ -12,7 +12,7 @@ enum RenderPassEncoderSettings {
     }
 
     static func makeRenderPipelineState(device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String = "fullscreen_vertex", fragmentFunction: String, pixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
-        let library = library ?? device.makeDefaultLibrary()!
+        let library = library ?? device.makeBundleDebugLibrary()!
         let d = MTLRenderPipelineDescriptor()
         d.inputPrimitiveTopology = .triangle
         d.vertexFunction = library.makeFunction(name: vertexFunction)!
@@ -21,8 +21,8 @@ enum RenderPassEncoderSettings {
         return try! device.makeRenderPipelineState(descriptor: d)
     }
 
-    static func makeRenderPipelineState(device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String, fragmentFunction: String, llMesh: LowLevelMesh, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
-        let library = library ?? device.makeDefaultLibrary()!
+    @MainActor static func makeRenderPipelineState(device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String, fragmentFunction: String, llMesh: LowLevelMesh, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
+        let library = library ?? device.makeBundleDebugLibrary()!
         let llDescriptor = llMesh.descriptor
 
         let d = MTLRenderPipelineDescriptor()

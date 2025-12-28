@@ -1,8 +1,8 @@
 import simd
 import ARKit
 
-enum DeviceDependants {
-    // see also: https://stackoverflow.com/questions/78664948/exactly-where-is-worldtrackingprovider-querydeviceanchor-attached-in-visionos?utm_source=chatgpt.com
+public enum DeviceDependants {
+    // see also: https://stackoverflow.com/questions/78664948/exactly-where-is-worldtrackingprovider-querydeviceanchor-attached-in-visionos
     struct DeviceAnchorCameraTransformShift {
         var left: SIMD3<Float>
         var right: SIMD3<Float>
@@ -10,22 +10,22 @@ enum DeviceDependants {
             left = .init(-ipd / 2, shiftY, shiftZ)
             right =  .init(ipd / 2, shiftY, shiftZ)
         }
-        static var mono: Self = .init(ipd: 0, shiftY: 0, shiftZ: 0)
+        nonisolated(unsafe) static var mono: Self = .init(ipd: 0, shiftY: 0, shiftZ: 0)
         // ipd: it maybe be distance between hardware cameras
         // sfhitY, shiftZ: derived from my experimentations. should be refined.
-        static var stereo: Self = .init(ipd: 0.064, shiftY: -0.0261, shiftZ: -0.0212)
+        nonisolated(unsafe) static var stereo: Self = .init(ipd: 0.064, shiftY: -0.0261, shiftZ: -0.0212)
     }
 #if targetEnvironment(simulator)
-    static let viewCount: Int = 1
+    public static let viewCount: Int = 1
     static let projection = simd_float4x4([
         [1.0, 0.0, 0.0, 0.0],
         [0.0, 1.7777778, 0.0, 0.0],
         [0.0, 0.0, 0.0, -1.0],
         [0.0, 0.0, 0.1, 0.0],
     ])
-    static var aspectRatio: Float {projection[1][1] / projection[0][0]}
+    public static var aspectRatio: Float {projection[1][1] / projection[0][0]}
 #else
-    static let viewCount: Int = 2
+    public static let viewCount: Int = 2
     static let cameraShift: DeviceAnchorCameraTransformShift = .stereo
     // using hard coded value, because we cannot get at runtime, as the only way to get them is from CompsitorLayer Drawable that cannot run simultaneously with ImmersiveView with RealityView.
     static let projection0 = simd_float4x4([
@@ -40,7 +40,7 @@ enum DeviceDependants {
         [0.2677407, -0.086908735, 0.0, -1.0000918],
         [0.0, 0.0, 0.09693231, 0.0],
     ])
-    static var aspectRatio: Float {projection0[1][1] / projection0[0][0]}
+    public static var aspectRatio: Float {projection0[1][1] / projection0[0][0]}
 #endif
 }
 extension DeviceDependants {

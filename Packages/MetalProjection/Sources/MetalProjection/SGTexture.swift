@@ -1,6 +1,6 @@
 import ShaderGraphCoder
 
-extension SGTexture {
+public extension SGTexture {
     func image2DArrayColor4(index: SGValue = .int(0), defaultValue: SGColor, texcoord: SGVector? = nil, magFilter: SGSamplerMinMagFilter = SGSamplerMinMagFilter.linear, minFilter: SGSamplerMinMagFilter = SGSamplerMinMagFilter.linear, uWrapMode: SGSamplerAddressMode = SGSamplerAddressMode.clampToEdge, vWrapMode: SGSamplerAddressMode = SGSamplerAddressMode.clampToEdge, noFlipV: SGValue = .int(0)) -> SGColor {
         SGColor(source: .nodeOutput(SGNode(
             nodeType: "ND_RealityKitTexture2DArray_color4",
