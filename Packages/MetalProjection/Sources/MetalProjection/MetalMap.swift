@@ -9,11 +9,13 @@ extension VolumeSpotLight {
     init(position: simd_float3, direction: simd_float3, angleCos: Float, color: simd_float3, intensity: Float) {
         let angleSin = 1 - angleCos * angleCos
         let lightLength: Float = 10
+        let worldFromModelTransform = Transform(
+            scale: .init(angleSin, 1, angleSin) * lightLength,
+            rotation: .init(from: [0, -1, 0], to: direction),
+            translation: position).matrix
         self.init(
-            worldFromModelTransform: Transform(
-                scale: .init(angleSin, 1, angleSin) * lightLength,
-                rotation: .init(from: [0, -1, 0], to: direction),
-                translation: position).matrix,
+            worldFromModelTransform: worldFromModelTransform,
+            modelFromWorldTransform: worldFromModelTransform.inverse,
             position: position,
             direction: direction,
             angleCos: angleCos,
@@ -106,12 +108,13 @@ public final class MetalMap {
             projection1Inverse: cameraTransformAndProjections.last!.projection.inverse,
         )
 
+        let time: Float = Float(CACurrentMediaTime())
         let lights: [VolumeSpotLight] = [
-            .init(position: .init(-1.0, 3, -1), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(0.25, 0.5, 1), intensity: 0.3),
-            .init(position: .init(-0.5, 3, -1), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(0.25, 0.5, 1), intensity: 0.3),
-            .init(position: .init(0, 3, -1), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(1, 1, 1), intensity: 0.3),
-            .init(position: .init(0.5, 3, -1), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(1, 0.5, 0.5), intensity: 0.3),
-            .init(position: .init(1.0, 3, -1), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(1, 0.5, 0.5), intensity: 0.3),
+            .init(position: .init(-1.0, 3, -2), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(0.25, 0.5, 1), intensity: 1),
+            .init(position: .init(-0.5, 3, -2), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * sin(time)]), angleCos: cos(.pi / 4), color: .init(1, 0.25, 0.5), intensity: 1),
+            .init(position: .init(0, 3, -2), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(1, 1, 1), intensity: 0.8),
+            .init(position: .init(0.5, 3, -2), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * -sin(time)]), angleCos: cos(.pi / 4), color: .init(0.25, 0.5, 1), intensity: 1),
+            .init(position: .init(1.0, 3, -2), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(1, 0.25, 0.5), intensity: 1),
         ]
 
         scenePass.encode(in: commandBuffer, cameraTransformAndProjections: cameraTransformAndProjections, entity: entity)

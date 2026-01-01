@@ -18,6 +18,7 @@ enum RenderPassEncoderSettings {
         d.vertexFunction = library.makeFunction(name: vertexFunction)!
         d.fragmentFunction = library.makeFunction(name: fragmentFunction)!
         d.colorAttachments[0].pixelFormat = pixelFormat
+        d.colorAttachments[0].isBlendingEnabled = false
         return try! device.makeRenderPipelineState(descriptor: d)
     }
 

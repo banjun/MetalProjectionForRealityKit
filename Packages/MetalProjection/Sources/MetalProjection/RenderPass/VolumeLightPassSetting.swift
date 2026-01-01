@@ -33,8 +33,11 @@ class VolumeLightPassSetting {
         d.colorAttachments[0].pixelFormat = outTexture.pixelFormat
         d.colorAttachments[0].isBlendingEnabled = true
         d.colorAttachments[0].rgbBlendOperation = .add
+        d.colorAttachments[0].alphaBlendOperation = .add
         d.colorAttachments[0].sourceRGBBlendFactor = .one
+        d.colorAttachments[0].sourceAlphaBlendFactor = .one
         d.colorAttachments[0].destinationRGBBlendFactor = .one
+        d.colorAttachments[0].destinationAlphaBlendFactor = .one
         d.depthAttachmentPixelFormat = depthTexture.pixelFormat
 
         state = try! device.makeRenderPipelineState(descriptor: d)
@@ -54,6 +57,8 @@ class VolumeLightPassSetting {
         defer {encoder.endEncoding()}
         encoder.setRenderPipelineState(state)
 
+        var uniforms = uniforms
+        encoder.setFragmentBytes(&uniforms, length: MemoryLayout.stride(ofValue: uniforms), index: 0)
         [inDepthTexture].enumerated().forEach { i, inDepthTexture in
             encoder.setFragmentTexture(inDepthTexture, index: i)
         }

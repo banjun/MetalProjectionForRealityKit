@@ -170,7 +170,7 @@ float4 composite_fragment(FullscreenIn in [[stage_in]],
     auto b = bloom.sample(linearSampler, in.uv, in.vid);
     auto l = light.sample(linearSampler, in.uv, in.vid);
     auto bloomIntensity = 0.25;
-    auto lightIntensity = 0.5;
+    auto lightIntensity = 1.0;
     return float4(s * 0 + b * bloomIntensity + l * lightIntensity);
 }
 
@@ -182,6 +182,12 @@ struct VolumeLightFragment {
     float4 position [[position]];
     uint vid [[render_target_array_index]];
     float4 color;
+    float3 posInWorld;
+    float3 lightPosInWorld;
+    float3 lightDirInWorld;
+    float3 lightAngleCos;
+    float3 posInModel; // model = light
+    float3 cameraInModel;
 };
 
 [[vertex]]
@@ -201,17 +207,37 @@ VolumeLightFragment volume_light_vertex(VolumeLightVertex in [[stage_in]],
     auto pView4 = uniform.cameraTransformInverse * pWorld4;
     auto pClip4 = uniform.projection * pView4;
 
+    auto lightPosInWorld4 = light.worldFromModelTransform * float4(0, 0, 0, 1);
+    auto cameraInModel4 = light.modelFromWorldTransform * uniform.cameraTransform * float4(0, 0, 0, 1);
+
     VolumeLightFragment out;
     out.position = pClip4;
     out.vid = vid;
     out.color = float4(light.color, light.intensity);
+    out.posInWorld = pWorld4.xyz;
+    out.lightPosInWorld = lightPosInWorld4.xyz;
+    out.lightDirInWorld = light.direction;
+    out.lightAngleCos = light.angleCos;
+    out.posInModel = in.position;
+    out.cameraInModel = cameraInModel4.xyz;
     return out;
 }
 
 [[fragment]]
 FragmentOut volume_light_fragment(VolumeLightFragment in [[stage_in]],
+                                  const device Uniforms &uniforms [[buffer(0)]],
                                   depth2d_array<float> depth [[texture(0)]]) {
+    auto viewDirection = normalize(in.posInModel - in.cameraInModel);
+    auto lightToFragment = in.posInWorld - in.lightPosInWorld;
+    auto distanceAttenuation = 1.0 / (1.0 + length_squared(lightToFragment));
+    auto spotCos = dot(in.lightDirInWorld, normalize(lightToFragment));
+    auto n = normalize(float3(in.posInModel.x, 0, in.posInModel.z));
+    auto viewCos = dot(n, -normalize(float3(viewDirection.x, 0, viewDirection.z)));
+    auto attenuation = clamp(distanceAttenuation, 0.0, 0.8)
+    * smoothstep(in.lightAngleCos, in.lightAngleCos + 0.05, spotCos)
+    * smoothstep(0.5, 0.8, viewCos);
+
     FragmentOut out;
-    out.color = in.color;
+    out.color = float4(in.color.xyz * in.color.w * attenuation, 1); // premultiplied
     return out;
 }

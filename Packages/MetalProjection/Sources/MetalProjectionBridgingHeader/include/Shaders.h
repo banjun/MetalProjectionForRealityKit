@@ -33,6 +33,7 @@ struct Vertex {
 
 struct VolumeSpotLight {
     simd_float4x4 worldFromModelTransform;
+    simd_float4x4 modelFromWorldTransform;
     simd_float3 position;
     simd_float3 direction;
     float angleCos;
