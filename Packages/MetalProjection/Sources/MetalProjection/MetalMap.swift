@@ -5,6 +5,23 @@ import QuartzCore
 import Observation
 import MetalProjectionBridgingHeader
 
+extension VolumeSpotLight {
+    init(position: simd_float3, direction: simd_float3, angleCos: Float, color: simd_float3, intensity: Float) {
+        let angleSin = 1 - angleCos * angleCos
+        let lightLength: Float = 10
+        self.init(
+            worldFromModelTransform: Transform(
+                scale: .init(angleSin, 1, angleSin) * lightLength,
+                rotation: .init(from: [0, -1, 0], to: direction),
+                translation: position).matrix,
+            position: position,
+            direction: direction,
+            angleCos: angleCos,
+            color: color,
+            intensity: intensity)
+    }
+}
+
 @Observable
 public final class MetalMap {
     private let commandQueue: MTLCommandQueue
@@ -56,7 +73,7 @@ public final class MetalMap {
         scenePass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount)
         brightPass = .init(device: device, width: width / 2, height: height / 2, pixelFormat: pixelFormat, viewCount: viewCount)
         bloomPass = .init(device: device, width: width / 4, height: height / 4, pixelFormat: pixelFormat, viewCount: viewCount)
-        volumeLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount)
+        volumeLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, depthTexture: scenePass.depthTexture, viewCount: viewCount)
         compositePass = .init(device: device, outTexture: llTexture.read())
 
         debugLLTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount, textureUsage: []))
@@ -90,11 +107,11 @@ public final class MetalMap {
         )
 
         let lights: [VolumeSpotLight] = [
-            .init(position: .init(0, 3, -1), direction: .init(0, -1, 0), angleCos: cos(.pi / 32), color: .init(1, 1, 1), intensity: 1),
-            .init(position: .init(-0.5, 3, -1), direction: .init(0, -1, 0), angleCos: cos(.pi / 32), color: .init(0.5, 0.5, 1), intensity: 1),
-            .init(position: .init(-1.0, 3, -1), direction: .init(0, -1, 0), angleCos: cos(.pi / 32), color: .init(0.5, 0.5, 1), intensity: 1),
-            .init(position: .init(0.5, 3, -1), direction: .init(0, -1, 0), angleCos: cos(.pi / 32), color: .init(1, 0.5, 0.5), intensity: 1),
-            .init(position: .init(1.0, 3, -1), direction: .init(0, -1, 0), angleCos: cos(.pi / 32), color: .init(1, 0.5, 0.5), intensity: 1),
+            .init(position: .init(-1.0, 3, -1), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(0.25, 0.5, 1), intensity: 0.3),
+            .init(position: .init(-0.5, 3, -1), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(0.25, 0.5, 1), intensity: 0.3),
+            .init(position: .init(0, 3, -1), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(1, 1, 1), intensity: 0.3),
+            .init(position: .init(0.5, 3, -1), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(1, 0.5, 0.5), intensity: 0.3),
+            .init(position: .init(1.0, 3, -1), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(1, 0.5, 0.5), intensity: 0.3),
         ]
 
         scenePass.encode(in: commandBuffer, cameraTransformAndProjections: cameraTransformAndProjections, entity: entity)

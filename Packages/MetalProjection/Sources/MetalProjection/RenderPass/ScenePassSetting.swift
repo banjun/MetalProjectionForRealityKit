@@ -47,7 +47,8 @@ class ScenePassSetting {
         encoder.setRenderPipelineState(state)
 
         var vertexUniforms: [VertexUniforms] = cameraTransformAndProjections.map {
-            VertexUniforms(modelTransform: entity.convert(transform: .identity, to: nil).matrix,
+            VertexUniforms(viewCount: Int32(cameraTransformAndProjections.count),
+                           modelTransform: entity.convert(transform: .identity, to: nil).matrix,
                            cameraTransform: $0.transform,
                            cameraTransformInverse: $0.transform.inverse,
                            projection: $0.projection,

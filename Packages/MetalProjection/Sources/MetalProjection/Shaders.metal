@@ -173,3 +173,45 @@ float4 composite_fragment(FullscreenIn in [[stage_in]],
     auto lightIntensity = 0.5;
     return float4(s * 0 + b * bloomIntensity + l * lightIntensity);
 }
+
+
+struct VolumeLightVertex {
+    simd_float3 position [[attribute(0)]];
+};
+struct VolumeLightFragment {
+    float4 position [[position]];
+    uint vid [[render_target_array_index]];
+    float4 color;
+};
+
+[[vertex]]
+VolumeLightFragment volume_light_vertex(VolumeLightVertex in [[stage_in]],
+                                        const device VertexUniforms *uniforms [[buffer(1)]],
+                                        const device VolumeSpotLight *lights [[buffer(2)]],
+                                        const device int &lightCount [[buffer(3)]],
+                                        const uint iid [[instance_id]]) {
+    auto viewCount = uniforms[0].viewCount; // use 0 as same acroll all index
+    auto vid = iid % viewCount;
+    auto lid = iid / viewCount;
+    auto light = lights[lid];
+
+    auto uniform = uniforms[vid];
+    auto pModel4 = float4(in.position, 1);
+    auto pWorld4 = light.worldFromModelTransform * pModel4;
+    auto pView4 = uniform.cameraTransformInverse * pWorld4;
+    auto pClip4 = uniform.projection * pView4;
+
+    VolumeLightFragment out;
+    out.position = pClip4;
+    out.vid = vid;
+    out.color = float4(light.color, light.intensity);
+    return out;
+}
+
+[[fragment]]
+FragmentOut volume_light_fragment(VolumeLightFragment in [[stage_in]],
+                                  depth2d_array<float> depth [[texture(0)]]) {
+    FragmentOut out;
+    out.color = in.color;
+    return out;
+}

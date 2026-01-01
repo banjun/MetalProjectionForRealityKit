@@ -45,7 +45,7 @@ enum RenderPassEncoderSettings {
         return try! device.makeRenderPipelineState(descriptor: d)
     }
 
-    static func renderPassDescriptor(texture: any MTLTexture, clearColor: MTLClearColor = .init(red: 0, green: 0, blue: 0, alpha: 0), loadAction: MTLLoadAction = .clear, storeAction: MTLStoreAction = .store, depthTexture: (any MTLTexture)? = nil) -> MTLRenderPassDescriptor {
+    static func renderPassDescriptor(texture: any MTLTexture, clearColor: MTLClearColor = .init(red: 0, green: 0, blue: 0, alpha: 0), loadAction: MTLLoadAction = .clear, storeAction: MTLStoreAction = .store, depthTexture: (any MTLTexture)? = nil, depthLoadAction: MTLLoadAction = .clear, depthStoreAction: MTLStoreAction = .store) -> MTLRenderPassDescriptor {
         let d = MTLRenderPassDescriptor()
         d.renderTargetArrayLength = texture.arrayLength
         d.colorAttachments[0]?.texture = texture
@@ -54,11 +54,11 @@ enum RenderPassEncoderSettings {
         d.colorAttachments[0]?.storeAction = storeAction
         if let depthTexture {
             d.depthAttachment.texture = depthTexture
-            d.depthAttachment.loadAction = .clear
+            d.depthAttachment.loadAction = depthLoadAction
 #if DEBUG
             d.depthAttachment.storeAction = .store
 #else
-            d.depthAttachment.storeAction = .dontCare
+            d.depthAttachment.storeAction = depthStoreAction
 #endif
             d.depthAttachment.clearDepth = 0
         }
