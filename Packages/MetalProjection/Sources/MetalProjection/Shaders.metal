@@ -185,7 +185,7 @@ struct VolumeLightFragment {
     float3 posInWorld;
     float3 lightPosInWorld;
     float3 lightDirInWorld;
-    float3 lightAngleCos;
+    float lightAngleCos;
     float3 posInModel; // model = light
     float3 cameraInModel;
 };
@@ -238,6 +238,6 @@ FragmentOut volume_light_fragment(VolumeLightFragment in [[stage_in]],
     * smoothstep(0.5, 0.8, viewCos);
 
     FragmentOut out;
-    out.color = float4(in.color.xyz * in.color.w * attenuation, 1); // premultiplied
+    out.color = float4(in.color.xyz * in.color.w * attenuation, 1);
     return out;
 }

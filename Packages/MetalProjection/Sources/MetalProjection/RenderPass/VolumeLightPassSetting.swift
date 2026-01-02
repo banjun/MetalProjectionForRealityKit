@@ -36,11 +36,11 @@ class VolumeLightPassSetting {
         d.colorAttachments[0].pixelFormat = outTexture.pixelFormat
         d.colorAttachments[0].isBlendingEnabled = true
         d.colorAttachments[0].rgbBlendOperation = .add
-        d.colorAttachments[0].alphaBlendOperation = .add
         d.colorAttachments[0].sourceRGBBlendFactor = .one
-        d.colorAttachments[0].sourceAlphaBlendFactor = .one
         d.colorAttachments[0].destinationRGBBlendFactor = .one
-        d.colorAttachments[0].destinationAlphaBlendFactor = .one
+        d.colorAttachments[0].alphaBlendOperation = .add
+        d.colorAttachments[0].sourceAlphaBlendFactor = .one
+        d.colorAttachments[0].destinationAlphaBlendFactor = .zero
         d.depthAttachmentPixelFormat = depthTexture.pixelFormat
 
         state = try! device.makeRenderPipelineState(descriptor: d)
