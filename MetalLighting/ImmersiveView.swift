@@ -106,7 +106,12 @@ struct ImmersiveView: View {
 
                     let screenMaterial: ShaderGraphMaterial = await {
                         let mapValue = projectedMap()
-                        var m = try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb, opacity: .zero, applyPostProcessToneMap: false, hasPremultipliedAlpha: true))
+                        #if targetEnvironment(simulator)
+                        let rgbFactor = SGValue.float(1)
+                        #else
+                        let rgbFactor = SGValue.float(1.5) // why different?
+                        #endif
+                        var m = try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb * rgbFactor, opacity: .zero, applyPostProcessToneMap: false, hasPremultipliedAlpha: true))
                         m.faceCulling = .front
                         return m
                     }()

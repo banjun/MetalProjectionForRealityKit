@@ -8,16 +8,19 @@ class VolumeLightPassSetting {
     let depthTexture: any MTLTexture
     let depthStencilState: MTLDepthStencilState
 
+    let normalizedConeVertices: [Vertex]
     struct Vertex {
         var position: SIMD3<Float>
     }
+
+    let lightsBuffer: MTLBuffer
 
     convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, depthTexture: any MTLTexture, viewCount: Int) {
         self.init(device: device,
                   outTexture: RenderPassEncoderSettings.makeTexture(device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount),
                   depthTexture: depthTexture)
     }
-    init(device: any MTLDevice, outTexture: any MTLTexture, depthTexture: any MTLTexture) {
+    init(device: any MTLDevice, outTexture: any MTLTexture, depthTexture: any MTLTexture, coneDivisionStep: Float = .pi / 4) {
         let library = device.makeBundleDebugLibrary()!
 
         let d = MTLRenderPipelineDescriptor()
@@ -50,6 +53,15 @@ class VolumeLightPassSetting {
         }())!
         self.outTexture = outTexture
         self.depthTexture = depthTexture
+
+        self.normalizedConeVertices = stride(from: 0, to: 2 * .pi, by: coneDivisionStep).flatMap { a in [
+            SIMD3<Float>.zero,
+            SIMD3<Float>(cos(a), -1, sin(a)),
+            SIMD3<Float>(cos(a + coneDivisionStep), -1, sin(a + coneDivisionStep)),
+        ]}.map {Vertex(position: $0)}
+
+        let maxLights = 100
+        lightsBuffer = device.makeBuffer(length: MemoryLayout<VolumeSpotLight>.stride * maxLights, options: .storageModeShared)!
     }
 
     func encode(in commandBuffer: any MTLCommandBuffer, inDepthTexture: any MTLTexture, uniforms: Uniforms, lights: [VolumeSpotLight]) {
@@ -62,12 +74,6 @@ class VolumeLightPassSetting {
         [inDepthTexture].enumerated().forEach { i, inDepthTexture in
             encoder.setFragmentTexture(inDepthTexture, index: i)
         }
-        let divisionStep: Float = .pi / 8
-        let normalizedConeVertices: [Vertex] = stride(from: 0, to: 2 * .pi, by: divisionStep).flatMap { a in [
-            SIMD3<Float>.zero,
-            SIMD3<Float>(cos(a), -1, sin(a)),
-            SIMD3<Float>(cos(a + divisionStep), -1, sin(a + divisionStep)),
-        ]}.map {Vertex(position: $0)}
         encoder.setVertexBytes(normalizedConeVertices, length: MemoryLayout<Vertex>.stride * normalizedConeVertices.count, index: 0)
         var vertexUniforms: [VertexUniforms] = (0..<outTexture.arrayLength).map { vid in
             let cameraTransform = vid == 0 ? uniforms.cameraTransformL : uniforms.cameraTransformR
@@ -84,9 +90,9 @@ class VolumeLightPassSetting {
         encoder.setDepthStencilState(depthStencilState)
         encoder.setFrontFacing(.clockwise)
         encoder.setCullMode(.none)
-        var lights = lights
         var lightCounts = lights.count
-        encoder.setVertexBytes(&lights, length: MemoryLayout<VolumeSpotLight>.stride * lightCounts, index: 2)
+        lightsBuffer.contents().copyMemory(from: lights, byteCount: MemoryLayout<VolumeSpotLight>.stride * lightCounts)
+        encoder.setVertexBuffer(lightsBuffer, offset: 0, index: 2)
         encoder.setVertexBytes(&lightCounts, length: MemoryLayout.stride(ofValue: lightCounts), index: 3)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: normalizedConeVertices.count, instanceCount: lightCounts * outTexture.arrayLength)
     }
