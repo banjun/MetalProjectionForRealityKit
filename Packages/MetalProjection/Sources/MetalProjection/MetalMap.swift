@@ -36,9 +36,9 @@ public final class MetalMap {
 
     // scene -> post effects (bright, bloom) -> composite -> llTexture -> textureResource
     private let scenePass: ScenePassSetting
-    @MainActor public var llMesh: LowLevelMesh? {
-        get {scenePass.llMesh}
-        set {scenePass.llMesh = newValue}
+    @MainActor public var llMeshes: [LowLevelMesh] {
+        get {scenePass.llMeshes}
+        set {scenePass.llMeshes = newValue}
     }
     private let brightPass: BrightPassSetting
     private let bloomPass: BloomPassSetting
@@ -93,7 +93,7 @@ public final class MetalMap {
         depthToColorPass = .init(device: device, outTexture: debugMetalTexture)
     }
 
-    @MainActor func draw(_ entity: Entity) {
+    @MainActor func draw(_ entities: [Entity]) {
         guard let worldTracker else {
             let arkitSession = ARKitSession()
             let worldTracker = WorldTrackingProvider()
@@ -143,7 +143,7 @@ public final class MetalMap {
             isLineLights3Enabled ? lineLights3 : [],
         ].flatMap(\.self)
 
-        scenePass.encode(in: commandBuffer, cameraTransformAndProjections: cameraTransformAndProjections, entity: entity)
+        scenePass.encode(in: commandBuffer, cameraTransformAndProjections: cameraTransformAndProjections, entities: entities)
         let bloomOut: (any MTLTexture)? = isBloomEnabled ? {
             brightPass.encode(in: commandBuffer, inTexture: scenePass.outTexture)
             return bloomPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)

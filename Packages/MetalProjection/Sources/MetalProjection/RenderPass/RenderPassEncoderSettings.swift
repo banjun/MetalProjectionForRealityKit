@@ -22,23 +22,25 @@ enum RenderPassEncoderSettings {
         return try! device.makeRenderPipelineState(descriptor: d)
     }
 
-    @MainActor static func makeRenderPipelineState(device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String, fragmentFunction: String, llMesh: LowLevelMesh, pixelFormats: [MTLPixelFormat], depthPixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
+    @MainActor static func makeRenderPipelineState(device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String, fragmentFunction: String, llMeshes: [LowLevelMesh], pixelFormats: [MTLPixelFormat], depthPixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
         let library = library ?? device.makeBundleDebugLibrary()!
-        let llDescriptor = llMesh.descriptor
+        let llDescriptors = llMeshes.map(\.descriptor)
 
         let d = MTLRenderPipelineDescriptor()
         d.inputPrimitiveTopology = .triangle
         d.rasterSampleCount = 1
         d.vertexFunction = library.makeFunction(name: vertexFunction)!
         d.vertexDescriptor = .init()
-        llDescriptor.vertexLayouts.enumerated().forEach { i, l in
-            d.vertexDescriptor!.layouts[i]!.stride = l.bufferStride
-        }
-        let vertexAttributes: [LowLevelMesh.Attribute] = llDescriptor.vertexAttributes
-        vertexAttributes.enumerated().forEach { i, a in
-            d.vertexDescriptor!.attributes[i]!.format = a.format
-            d.vertexDescriptor!.attributes[i]!.offset = a.offset
-            d.vertexDescriptor!.attributes[i]!.bufferIndex = a.layoutIndex
+        for llDescriptor in llDescriptors {
+            llDescriptor.vertexLayouts.enumerated().forEach { i, l in
+                d.vertexDescriptor!.layouts[i]!.stride = l.bufferStride
+            }
+            let vertexAttributes: [LowLevelMesh.Attribute] = llDescriptor.vertexAttributes
+            vertexAttributes.enumerated().forEach { i, a in
+                d.vertexDescriptor!.attributes[i]!.format = a.format
+                d.vertexDescriptor!.attributes[i]!.offset = a.offset
+                d.vertexDescriptor!.attributes[i]!.bufferIndex = a.layoutIndex
+            }
         }
         d.fragmentFunction = library.makeFunction(name: fragmentFunction)!
         pixelFormats.enumerated().forEach {
