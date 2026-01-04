@@ -56,13 +56,23 @@ class ScenePassSetting {
         encoder.setRenderPipelineState(state)
 
         let viewCount = outTexture.arrayLength
+        var vertexUniforms: [VertexUniforms] = cameraTransformAndProjections.map {
+            VertexUniforms(viewCount: Int32(cameraTransformAndProjections.count),
+                           worldFromModelTransform: .init(), // set later in loop
+                           worldFromCameraTransform: $0.transform,
+                           cameraFromWorldTransform: $0.transform.inverse,
+                           projectionFromCameraTransform: $0.projection,
+                           cameraFromProjectionTransform: $0.projection.inverse)
+        }
         var fragmentUniforms: FragmentUniforms = .init(textureSize: .init(Int32(outTexture.width), Int32(outTexture.height)))
 
         encoder.setFragmentBytes(&fragmentUniforms, length: MemoryLayout<FragmentUniforms>.stride, index: 2)
+        var prevBindTextures: [(any MTLTexture)?] = .init(repeating: nil, count: 1)
+        var nextBindTextures: [(any MTLTexture)?] = .init(repeating: nil, count: prevBindTextures.count)
         for (entity, llMesh) in (entities.compactMap {e in e.components[MetalMapSystem.Component.self].map {(e, $0.llMesh)}}) {
             let materials = (entity as? ModelEntity)?.model!.materials ?? []
             if let tex = materialTextureCache[entity.id] {
-                encoder.setFragmentTexture(tex, index: 0)
+                nextBindTextures[0] = tex
                 encoder.setDepthStencilState(depthStencilState)
                 encoder.setCullMode(.back) // just for performance, requires front facing = ccw (below)
                 encoder.setFrontFacing(.counterClockwise)
@@ -76,17 +86,19 @@ class ScenePassSetting {
                 try! baseColorTexture.resource.copy(to: tex)
                 materialTextureCache[entity.id] = tex
             } else {
-                encoder.setFragmentTexture(nil, index: 0)
+                nextBindTextures[0] = nil
+            }
+            nextBindTextures.enumerated().forEach {
+                // check identity just for avoiding redundant set insights from Metal Debugger
+                guard prevBindTextures[$0.offset] !== $0.element else { return }
+                encoder.setFragmentTexture($0.element, index: $0.offset)
+                prevBindTextures[$0.offset] = $0.element
             }
 
             encoder.setVertexBuffer(llMesh.read(bufferIndex: 0, using: commandBuffer), offset: 0, index: 0)
-            var vertexUniforms: [VertexUniforms] = cameraTransformAndProjections.map {
-                VertexUniforms(viewCount: Int32(cameraTransformAndProjections.count),
-                               modelTransform: entity.convert(transform: .identity, to: nil).matrix,
-                               cameraTransform: $0.transform,
-                               cameraTransformInverse: $0.transform.inverse,
-                               projection: $0.projection,
-                               projectionInverse: $0.projection.inverse)
+            let worldFromModelTransform = entity.convert(transform: .identity, to: nil).matrix
+            for i in 0..<vertexUniforms.count {
+                vertexUniforms[i].worldFromModelTransform = worldFromModelTransform
             }
             encoder.setVertexBytes(&vertexUniforms, length: MemoryLayout<VertexUniforms>.stride * vertexUniforms.count, index: 1)
             encoder.drawIndexedPrimitives(type: .triangle, indexCount: llMesh.parts.reduce(into: 0) {$0 += $1.indexCount}, indexType: .uint32, indexBuffer: llMesh.readIndices(using: commandBuffer), indexBufferOffset: 0, instanceCount: viewCount)

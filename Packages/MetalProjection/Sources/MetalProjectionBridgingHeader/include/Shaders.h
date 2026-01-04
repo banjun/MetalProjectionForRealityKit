@@ -12,11 +12,11 @@ struct Uniforms {
 /// MetalMap->(vertex buffer)->vertex shader, as array, indexed by instance id for left/right eye
 struct VertexUniforms {
     int viewCount; // same value across uniforms[i], so that uniforms[0].viewCount should be used
-    simd_float4x4 modelTransform;
-    simd_float4x4 cameraTransform;
-    simd_float4x4 cameraTransformInverse;
-    simd_float4x4 projection;
-    simd_float4x4 projectionInverse;
+    simd_float4x4 worldFromModelTransform;
+    simd_float4x4 worldFromCameraTransform;
+    simd_float4x4 cameraFromWorldTransform;
+    simd_float4x4 projectionFromCameraTransform;
+    simd_float4x4 cameraFromProjectionTransform;
 };
 /// MetalMap->(fragment buffer)->fragment shader
 struct FragmentUniforms {

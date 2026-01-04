@@ -26,14 +26,14 @@ VertexOut render_vertex(VertexIn in [[stage_in]],
                         const uint vid [[instance_id]]) {
     auto uniform = uniforms[vid];
     auto pModel4 = float4(in.position, 1); // assuming in.position is in model pos
-    auto pWorld4 = uniform.modelTransform * pModel4;
-    auto pView4 = uniform.cameraTransformInverse * pWorld4;
-    auto pClip4 = uniform.projection * pView4;
+    auto pWorld4 = uniform.worldFromModelTransform * pModel4;
+    auto pView4 = uniform.cameraFromWorldTransform * pWorld4;
+    auto pClip4 = uniform.projectionFromCameraTransform * pView4;
 
     VertexOut out;
     out.position = pClip4;
     out.uv = in.uv;
-    out.normal = normalize((uniform.modelTransform * float4(in.normal, 0)).xyz); // TODO: use NormalMatrix as normal is inverse-transpose
+    out.normal = normalize((uniform.worldFromModelTransform * float4(in.normal, 0)).xyz); // TODO: use NormalMatrix as normal is inverse-transpose
     out.vid = vid;
     //    out.v.position = in.position;
     //    out.v.uv = in.uv;
@@ -224,11 +224,11 @@ VolumeLightFragment volume_light_vertex(VolumeLightVertex in [[stage_in]],
     auto uniform = uniforms[vid];
     auto pModel4 = float4(in.position, 1);
     auto pWorld4 = light.worldFromModelTransform * pModel4;
-    auto pView4 = uniform.cameraTransformInverse * pWorld4;
-    auto pClip4 = uniform.projection * pView4;
+    auto pView4 = uniform.cameraFromWorldTransform * pWorld4;
+    auto pClip4 = uniform.projectionFromCameraTransform * pView4;
 
     auto lightPosInWorld4 = light.worldFromModelTransform * float4(0, 0, 0, 1);
-    auto cameraInModel4 = light.modelFromWorldTransform * uniform.cameraTransform * float4(0, 0, 0, 1);
+    auto cameraInModel4 = light.modelFromWorldTransform * uniform.worldFromCameraTransform * float4(0, 0, 0, 1);
 
     VolumeLightFragment out;
     out.position = pClip4;

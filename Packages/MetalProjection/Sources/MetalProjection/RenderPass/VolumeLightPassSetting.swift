@@ -75,11 +75,11 @@ class VolumeLightPassSetting {
             let cameraTransform = vid == 0 ? uniforms.cameraTransformL : uniforms.cameraTransformR
             return VertexUniforms(
                 viewCount: Int32(outTexture.arrayLength),
-                modelTransform: .init(diagonal: [1, 1, 1, 1]), // model transform could be per light
-                cameraTransform: cameraTransform,
-                cameraTransformInverse: cameraTransform.inverse,
-                projection: vid == 0 ? uniforms.projection0 : uniforms.projection1,
-                projectionInverse: vid == 0 ? uniforms.projection0Inverse : uniforms.projection1Inverse,
+                worldFromModelTransform: .init(diagonal: [1, 1, 1, 1]), // model transform could be per light
+                worldFromCameraTransform: cameraTransform,
+                cameraFromWorldTransform: cameraTransform.inverse,
+                projectionFromCameraTransform: vid == 0 ? uniforms.projection0 : uniforms.projection1,
+                cameraFromProjectionTransform: vid == 0 ? uniforms.projection0Inverse : uniforms.projection1Inverse,
             )
         }
         encoder.setVertexBytes(&vertexUniforms, length: MemoryLayout<VertexUniforms>.stride * vertexUniforms.count, index: 1)
