@@ -66,13 +66,15 @@ FragmentOut render_fragment(VertexOut in [[stage_in]],
 
 struct FullscreenIn {
     float4 position [[position]];
-    uint iid [[render_target_array_index]];
+    uint vid [[render_target_array_index]];
+    uint iid;
     float2 uv;
 };
 
 [[vertex]]
 FullscreenIn fullscreen_vertex(const uint vertex_id [[vertex_id]],
-                               const uint instance_id [[instance_id]]) {
+                               const uint instance_id [[instance_id]],
+                               const device uint &viewCount [[buffer(1)]]) {
     float2 pos[3] = {
         float2(-1, -1),
         float2( 3, -1),
@@ -86,6 +88,7 @@ FullscreenIn fullscreen_vertex(const uint vertex_id [[vertex_id]],
     FullscreenIn o;
     o.position = float4(pos[vertex_id], 0, 1);
     o.uv = uv[vertex_id];
+    o.vid = instance_id % viewCount;
     o.iid = instance_id;
     return o;
 }
@@ -95,7 +98,7 @@ float4 bright_fragment(FullscreenIn in [[stage_in]],
                        texture2d_array<float> scene [[texture(0)]]) {
     auto threshold = 0.1;
     auto boost = 4.0;
-    auto c = scene.sample(linearSampler, in.uv, in.iid).rgb;
+    auto c = scene.sample(linearSampler, in.uv, in.vid).rgb;
     auto luminance = dot(c, float3(0.2126, 0.7152, 0.0722));
     return float4(luminance > threshold ? c * boost : 0.0, 1.0);
 }
@@ -117,12 +120,12 @@ float4 bloom_fragment(FullscreenIn in [[stage_in]],
 [[fragment]]
 float4 copy(FullscreenIn in [[stage_in]],
             texture2d_array<float> tex [[texture(0)]]) {
-    return tex.sample(nearestSampler, in.uv, in.iid);
+    return tex.sample(nearestSampler, in.uv, in.vid);
 }
 [[fragment]]
 float4 copyDepthToColor(FullscreenIn in [[stage_in]],
                         depth2d_array<float> depth [[texture(0)]]) {
-    auto d = depth.sample(nearestSampler, in.uv, in.iid);
+    auto d = depth.sample(nearestSampler, in.uv, in.vid);
     return float4(float3(d), 1);
 }
 
@@ -135,9 +138,9 @@ float4 volumeLight_fragment(FullscreenIn in [[stage_in]],
     simd_float4x4 projections[] = {uniforms.projection0, uniforms.projection1};
     simd_float4x4 projectionInverses[] = {uniforms.projection0Inverse, uniforms.projection1Inverse};
     simd_float4x4 cameraTransforms[] = {uniforms.cameraTransformL, uniforms.cameraTransformR};
-    auto projection = projections[in.iid];
-    auto projectionInverse = projectionInverses[in.iid];
-    auto cameraTransform = cameraTransforms[in.iid];
+    auto projection = projections[in.vid];
+    auto projectionInverse = projectionInverses[in.vid];
+    auto cameraTransform = cameraTransforms[in.vid];
 
     auto ndc = in.uv * 2 - 1;
     auto ndc4 = float4(ndc.x, -ndc.y, 1, 1);
@@ -177,14 +180,14 @@ float4 composite_fragment(FullscreenIn in [[stage_in]],
     texture2d_array<float> textures[] = {scene, bloom, volumeLight, surfaceLight};
     auto out = float4(0);
     for(int i = 0; i < 4; ++ i) {
-        auto v = textures[i].sample(linearSampler, in.uv, in.iid);
+        auto v = textures[i].sample(linearSampler, in.uv, in.vid);
         out += v * texIntensities[i];
     }
     return out;
-    auto s = scene.sample(linearSampler, in.uv, in.iid);
-    auto b = bloom.sample(linearSampler, in.uv, in.iid);
-    auto vl = volumeLight.sample(linearSampler, in.uv, in.iid);
-    auto sl = surfaceLight.sample(linearSampler, in.uv, in.iid);
+    auto s = scene.sample(linearSampler, in.uv, in.vid);
+    auto b = bloom.sample(linearSampler, in.uv, in.vid);
+    auto vl = volumeLight.sample(linearSampler, in.uv, in.vid);
+    auto sl = surfaceLight.sample(linearSampler, in.uv, in.vid);
     auto bloomIntensity = 0.25;
     auto volumeLightIntensity = 1.0;
     auto surfaceLightIntensity = 2.0;
@@ -265,7 +268,7 @@ FragmentOut surface_light_fragment(FullscreenIn in [[stage_in]],
                                    const device VolumeSpotLight *lights [[buffer(1)]]) {
     // Instance ID decode
     auto viewCount = uniforms[0].viewCount;
-    auto vid = in.iid % viewCount;
+    auto vid = in.vid;
     auto lid = in.iid / viewCount;
     // G-Buffer
     auto nWorld = gNormalTex.sample(linearSampler, in.uv, vid).rgb;

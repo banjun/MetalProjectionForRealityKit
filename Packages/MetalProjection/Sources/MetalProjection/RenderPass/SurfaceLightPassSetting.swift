@@ -38,6 +38,9 @@ class SurfaceLightPassSetting {
         encoder.setRenderPipelineState(state)
         guard lightsCount > 0 else { return }
 
+        var viewCount = outTexture.arrayLength
+        encoder.setVertexBytes(&viewCount, length: MemoryLayout.stride(ofValue: viewCount), index: 1)
+
         [depthTexture, gNormalTexture].enumerated().forEach { i, inTexture in
             encoder.setFragmentTexture(inTexture, index: i)
         }

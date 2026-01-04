@@ -26,6 +26,9 @@ class BloomPassSetting {
             defer {encoder.endEncoding()}
             encoder.setRenderPipelineState(state)
 
+            var viewCount = outTexture.arrayLength
+            encoder.setVertexBytes(&viewCount, length: MemoryLayout.stride(ofValue: viewCount), index: 1)
+
             var kawaseOffset = kawaseBlurOffset
             encoder.setFragmentBytes(&kawaseOffset, length: MemoryLayout.stride(ofValue: kawaseOffset), index: 0)
 

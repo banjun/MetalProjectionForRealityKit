@@ -16,6 +16,9 @@ class DepthToColorPassSetting {
         defer {encoder.endEncoding()}
         encoder.setRenderPipelineState(state)
 
+        var viewCount = outTexture.arrayLength
+        encoder.setVertexBytes(&viewCount, length: MemoryLayout.stride(ofValue: viewCount), index: 1)
+
         [inTexture].enumerated().forEach { i, inTexture in
             encoder.setFragmentTexture(inTexture, index: i)
         }
