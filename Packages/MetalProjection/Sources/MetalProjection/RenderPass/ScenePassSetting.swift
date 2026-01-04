@@ -13,6 +13,7 @@ class ScenePassSetting {
     let depthTexture: any MTLTexture
     let depthStencilState: MTLDepthStencilState
     private var materialTextureCache: [Entity.ID: MTLTexture] = [:]
+    let gNormalTexture: any MTLTexture
 
     convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat = .depth16Unorm, viewCount: Int) {
         #if DEBUG
@@ -27,6 +28,14 @@ class ScenePassSetting {
     init(device: any MTLDevice, outTexture: any MTLTexture, depthTexture: any MTLTexture) {
         self.device = device
         descriptor = RenderPassEncoderSettings.renderPassDescriptor(texture: outTexture, depthTexture: depthTexture)
+
+        // add gNormalTexture
+        self.gNormalTexture = RenderPassEncoderSettings.makeTexture(device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba16Float, viewCount: outTexture.arrayLength)
+        descriptor.colorAttachments[1].texture = gNormalTexture
+        descriptor.colorAttachments[1].loadAction = .clear
+        descriptor.colorAttachments[1].storeAction = .store
+        descriptor.colorAttachments[1].clearColor = MTLClearColor(red: 0, green: 0, blue: 1, alpha: 0)
+
         self.outTexture = outTexture
         self.depthTexture = depthTexture
         depthStencilState = device.makeDepthStencilState(descriptor: {
@@ -38,7 +47,7 @@ class ScenePassSetting {
     }
 
     @MainActor func createState() {
-        state = llMesh.map {RenderPassEncoderSettings.makeRenderPipelineState(device: device, vertexFunction: "render_vertex", fragmentFunction: "render_fragment", llMesh: $0, pixelFormat: outTexture.pixelFormat, depthPixelFormat: depthTexture.pixelFormat)}
+        state = llMesh.map {RenderPassEncoderSettings.makeRenderPipelineState(device: device, vertexFunction: "render_vertex", fragmentFunction: "render_fragment", llMesh: $0, pixelFormats: [outTexture.pixelFormat, gNormalTexture.pixelFormat], depthPixelFormat: depthTexture.pixelFormat)}
     }
 
     @MainActor func encode(in commandBuffer: any MTLCommandBuffer, cameraTransformAndProjections: [(transform: simd_float4x4, projection: simd_float4x4)], entity: Entity) {

@@ -64,22 +64,18 @@ class VolumeLightPassSetting {
         lightsBuffer = device.makeBuffer(length: MemoryLayout<VolumeSpotLight>.stride * maxLights, options: .storageModeShared)!
     }
 
-    func encode(in commandBuffer: any MTLCommandBuffer, inDepthTexture: any MTLTexture, uniforms: Uniforms, lights: [VolumeSpotLight]) {
+    func encode(in commandBuffer: any MTLCommandBuffer, uniforms: Uniforms, lights: [VolumeSpotLight]) {
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
         defer {encoder.endEncoding()}
         encoder.setRenderPipelineState(state)
+        guard !lights.isEmpty else { return }
 
-        var uniforms = uniforms
-        encoder.setFragmentBytes(&uniforms, length: MemoryLayout.stride(ofValue: uniforms), index: 0)
-        [inDepthTexture].enumerated().forEach { i, inDepthTexture in
-            encoder.setFragmentTexture(inDepthTexture, index: i)
-        }
         encoder.setVertexBytes(normalizedConeVertices, length: MemoryLayout<Vertex>.stride * normalizedConeVertices.count, index: 0)
         var vertexUniforms: [VertexUniforms] = (0..<outTexture.arrayLength).map { vid in
             let cameraTransform = vid == 0 ? uniforms.cameraTransformL : uniforms.cameraTransformR
             return VertexUniforms(
                 viewCount: Int32(outTexture.arrayLength),
-                modelTransform: .init(diagonal: [1, 1, 1, 1]), // TODO: model transform could be per light
+                modelTransform: .init(diagonal: [1, 1, 1, 1]), // model transform could be per light
                 cameraTransform: cameraTransform,
                 cameraTransformInverse: cameraTransform.inverse,
                 projection: vid == 0 ? uniforms.projection0 : uniforms.projection1,
@@ -89,7 +85,7 @@ class VolumeLightPassSetting {
         encoder.setVertexBytes(&vertexUniforms, length: MemoryLayout<VertexUniforms>.stride * vertexUniforms.count, index: 1)
         encoder.setDepthStencilState(depthStencilState)
         encoder.setFrontFacing(.clockwise)
-        encoder.setCullMode(.none)
+        encoder.setCullMode(.back)
         var lightCounts = lights.count
         lightsBuffer.contents().copyMemory(from: lights, byteCount: MemoryLayout<VolumeSpotLight>.stride * lightCounts)
         encoder.setVertexBuffer(lightsBuffer, offset: 0, index: 2)

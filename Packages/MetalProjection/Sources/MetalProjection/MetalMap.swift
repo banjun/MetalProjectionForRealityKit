@@ -43,7 +43,14 @@ public final class MetalMap {
     private let brightPass: BrightPassSetting
     private let bloomPass: BloomPassSetting
     private let volumeLightPass: VolumeLightPassSetting
+    private let surfaceLightPass: SurfaceLightPassSetting
     private let compositePass: CompositePassSetting
+
+    public var isBloomEnabled: Bool = false
+    public var isMainLightsEnabled: Bool = true
+    public var isLineLights1Enabled: Bool = false
+    public var isLineLights2Enabled: Bool = false
+    public var isLineLights3Enabled: Bool = false
 
     private var arkitSession: ARKitSession? {
         didSet {oldValue?.stop()}
@@ -53,9 +60,9 @@ public final class MetalMap {
     private let debugLLTexture: LowLevelTexture
     private let debugMetalTexture: any MTLTexture
     public let debugTextureResource: TextureResource
-    public var debugBlit: DebugBlit? = .volumeLight
+    public var debugBlit: DebugBlit? = .surfaceLight
     public enum DebugBlit: String, Hashable, Identifiable, CaseIterable {
-        case scene, depth, bright, bloom, volumeLight, composite
+        case scene, normal, depth, bright, bloom, volumeLight, surfaceLight, composite
         public var id: String {rawValue}
     }
     private let copyPass: CopyPassSetting
@@ -76,6 +83,7 @@ public final class MetalMap {
         brightPass = .init(device: device, width: width / 2, height: height / 2, pixelFormat: pixelFormat, viewCount: viewCount)
         bloomPass = .init(device: device, width: width / 4, height: height / 4, pixelFormat: pixelFormat, viewCount: viewCount)
         volumeLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, depthTexture: scenePass.depthTexture, viewCount: viewCount)
+        surfaceLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, gNormalTexture: scenePass.gNormalTexture, depthTexture: scenePass.depthTexture)
         compositePass = .init(device: device, outTexture: llTexture.read())
 
         debugLLTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount, textureUsage: []))
@@ -121,19 +129,28 @@ public final class MetalMap {
             let direction = simd_quatf(angle: time + 0.1 * Float($0), axis: [1, 0, 0]).act([0, -1, 0])
             return .init(position: simd_float3((Float($0) - 15), 5, -15), direction: direction, angleCos: cos(.pi / 6), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0])))
         }
-        let lights: [VolumeSpotLight] = [lineLights1, lineLights2, lineLights3].flatMap(\.self) + [
-            .init(position: .init(-1.0, 3, -2), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(0.25, 0.5, 1), intensity: 1),
-            .init(position: .init(-0.5, 3, -2), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * sin(time)]), angleCos: cos(.pi / 4), color: .init(1, 0.25, 0.5), intensity: 1),
-            .init(position: .init(0, 3, -2), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(1, 1, 1), intensity: 0.8),
-            .init(position: .init(0.5, 3, -2), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * -sin(time)]), angleCos: cos(.pi / 4), color: .init(0.25, 0.5, 1), intensity: 1),
-            .init(position: .init(1.0, 3, -2), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(1, 0.25, 0.5), intensity: 1),
+        let mainLights: [VolumeSpotLight] = [
+            .init(position: .init(-1.0, 3, -1), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(0.25, 0.5, 1), intensity: 1),
+            .init(position: .init(-0.5, 3, -1), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * sin(time)]), angleCos: cos(.pi / 4), color: .init(1, 0.25, 0.5), intensity: 1),
+            .init(position: .init(0, 3, -1), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(1, 1, 1), intensity: 0.8),
+            .init(position: .init(0.5, 3, -1), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * -sin(time)]), angleCos: cos(.pi / 4), color: .init(0.25, 0.5, 1), intensity: 1),
+            .init(position: .init(1.0, 3, -1), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(1, 0.25, 0.5), intensity: 1),
         ]
+        let lights: [VolumeSpotLight] = [
+            isMainLightsEnabled ? mainLights : [],
+            isLineLights1Enabled ? lineLights1 : [],
+            isLineLights2Enabled ? lineLights2 : [],
+            isLineLights3Enabled ? lineLights3 : [],
+        ].flatMap(\.self)
 
         scenePass.encode(in: commandBuffer, cameraTransformAndProjections: cameraTransformAndProjections, entity: entity)
-        brightPass.encode(in: commandBuffer, inTexture: scenePass.outTexture)
-        let bloomOut = bloomPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
-        volumeLightPass.encode(in: commandBuffer, inDepthTexture: scenePass.depthTexture, uniforms: uniforms, lights: lights)
-        compositePass.encode(in: commandBuffer, inTextures: [scenePass.outTexture, bloomOut, volumeLightPass.outTexture])
+        let bloomOut: (any MTLTexture)? = isBloomEnabled ? {
+            brightPass.encode(in: commandBuffer, inTexture: scenePass.outTexture)
+            return bloomPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
+        }() : nil
+        volumeLightPass.encode(in: commandBuffer, uniforms: uniforms, lights: lights)
+        surfaceLightPass.encode(in: commandBuffer, uniforms: uniforms, lightsBuffer: volumeLightPass.lightsBuffer, lightsCount: lights.count)
+        compositePass.encode(in: commandBuffer, inTextures: [scenePass.outTexture, bloomOut, volumeLightPass.outTexture, surfaceLightPass.outTexture])
 
         if let blit = commandBuffer.makeBlitCommandEncoder() {
             defer {blit.endEncoding()}
@@ -153,10 +170,12 @@ public final class MetalMap {
         switch debugBlit {
         case .none: break
         case .scene?: blitToDebugTexture(from: scenePass.outTexture)
+        case .normal?: blitToDebugTexture(from: scenePass.gNormalTexture)
         case .depth?: depthToColorPass.encode(in: commandBuffer, inTexture: scenePass.depthTexture)
         case .bright?: copyPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
-        case .bloom?: copyPass.encode(in: commandBuffer, inTexture: bloomOut)
+        case .bloom?: if let bloomOut {copyPass.encode(in: commandBuffer, inTexture: bloomOut)}
         case .volumeLight?: blitToDebugTexture(from: volumeLightPass.outTexture)
+        case .surfaceLight?: blitToDebugTexture(from: surfaceLightPass.outTexture)
         case .composite?: blitToDebugTexture(from: compositePass.outTexture)
         }
     }

@@ -11,14 +11,20 @@ class CompositePassSetting {
         self.outTexture = outTexture
     }
 
-    func encode(in commandBuffer: any MTLCommandBuffer, inTextures: [any MTLTexture]) {
+    func encode(in commandBuffer: any MTLCommandBuffer, inTextures: [(any MTLTexture)?]) {
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
         defer {encoder.endEncoding()}
         encoder.setRenderPipelineState(state)
 
+        var intensities: [Float] = [0, 0.25, 1, 2]
         inTextures.enumerated().forEach { i, inTexture in
-            encoder.setFragmentTexture(inTexture, index: i)
+            if let inTexture {
+                encoder.setFragmentTexture(inTexture, index: i)
+            } else {
+                intensities[i] = 0
+            }
         }
+        encoder.setFragmentBytes(&intensities, length: MemoryLayout<Float>.stride * intensities.count, index: 0)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: outTexture.arrayLength)
     }
 }

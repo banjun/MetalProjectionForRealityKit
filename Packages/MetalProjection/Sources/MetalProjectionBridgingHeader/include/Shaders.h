@@ -41,3 +41,9 @@ struct VolumeSpotLight {
     float intensity;
     // TODO: use DMX texture
 };
+
+struct SurfaceLightUniforms {
+    int viewCount; // same value across uniforms[i], so that uniforms[0].viewCount should be used
+    simd_float4x4 projectionInverse;
+    simd_float4x4 worldFromCameraTransform;
+};

@@ -44,6 +44,19 @@ struct ContentView: View {
                     }
                 }
                 .pickerStyle(.palette)
+
+                switch metalMap.debugBlit {
+                case .bright, .bloom:
+                    Toggle("Bloom", isOn: .init(get: {metalMap.isBloomEnabled}, set: {metalMap.isBloomEnabled = $0})).toggleStyle(.button)
+                case .volumeLight, .surfaceLight:
+                    HStack {
+                        Toggle("Main", isOn: .init(get: {metalMap.isMainLightsEnabled}, set: {metalMap.isMainLightsEnabled = $0})).toggleStyle(.button)
+                        Toggle("Line1", isOn: .init(get: {metalMap.isLineLights1Enabled}, set: {metalMap.isLineLights1Enabled = $0})).toggleStyle(.button)
+                        Toggle("Line2", isOn: .init(get: {metalMap.isLineLights2Enabled}, set: {metalMap.isLineLights2Enabled = $0})).toggleStyle(.button)
+                        Toggle("Line3", isOn: .init(get: {metalMap.isLineLights3Enabled}, set: {metalMap.isLineLights3Enabled = $0})).toggleStyle(.button)
+                    }
+                default: Text("No Options for \(metalMap.debugBlit?.rawValue ?? "none")")
+                }
             }
             .padding()
             .glassBackgroundEffect()

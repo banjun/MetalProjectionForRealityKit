@@ -22,7 +22,7 @@ enum RenderPassEncoderSettings {
         return try! device.makeRenderPipelineState(descriptor: d)
     }
 
-    @MainActor static func makeRenderPipelineState(device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String, fragmentFunction: String, llMesh: LowLevelMesh, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
+    @MainActor static func makeRenderPipelineState(device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String, fragmentFunction: String, llMesh: LowLevelMesh, pixelFormats: [MTLPixelFormat], depthPixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
         let library = library ?? device.makeBundleDebugLibrary()!
         let llDescriptor = llMesh.descriptor
 
@@ -41,7 +41,9 @@ enum RenderPassEncoderSettings {
             d.vertexDescriptor!.attributes[i]!.bufferIndex = a.layoutIndex
         }
         d.fragmentFunction = library.makeFunction(name: fragmentFunction)!
-        d.colorAttachments[0].pixelFormat = pixelFormat
+        pixelFormats.enumerated().forEach {
+            d.colorAttachments[$0.offset].pixelFormat = $0.element
+        }
         d.depthAttachmentPixelFormat = depthPixelFormat
         return try! device.makeRenderPipelineState(descriptor: d)
     }
