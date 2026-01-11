@@ -11,9 +11,10 @@ enum RenderPassEncoderSettings {
         return device.makeTexture(descriptor: d)!
     }
 
-    static func makeRenderPipelineState(device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String = "fullscreen_vertex", fragmentFunction: String, pixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
+    static func makeRenderPipelineState(label: String = #file, device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String = "fullscreen_vertex", fragmentFunction: String, pixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
         let library = library ?? device.makeBundleDebugLibrary()!
         let d = MTLRenderPipelineDescriptor()
+        d.label = label
         d.inputPrimitiveTopology = .triangle
         d.vertexFunction = library.makeFunction(name: vertexFunction)!
         d.fragmentFunction = library.makeFunction(name: fragmentFunction)!
@@ -22,11 +23,12 @@ enum RenderPassEncoderSettings {
         return try! device.makeRenderPipelineState(descriptor: d)
     }
 
-    @MainActor static func makeRenderPipelineState(device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String, fragmentFunction: String, llMeshes: [LowLevelMesh], pixelFormats: [MTLPixelFormat], depthPixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
+    @MainActor static func makeRenderPipelineState(label: String = #file, device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String, fragmentFunction: String, llMeshes: [LowLevelMesh], pixelFormats: [MTLPixelFormat], depthPixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
         let library = library ?? device.makeBundleDebugLibrary()!
         let llDescriptors = llMeshes.map(\.descriptor)
 
         let d = MTLRenderPipelineDescriptor()
+        d.label = label
         d.inputPrimitiveTopology = .triangle
         d.rasterSampleCount = 1
         d.vertexFunction = library.makeFunction(name: vertexFunction)!

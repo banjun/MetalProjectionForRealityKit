@@ -13,6 +13,7 @@ class CompositePassSetting {
 
     func encode(in commandBuffer: any MTLCommandBuffer, inTextures: [(any MTLTexture)?]) {
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
+        encoder.label = String(describing: type(of: self))
         defer {encoder.endEncoding()}
         encoder.setRenderPipelineState(state)
 

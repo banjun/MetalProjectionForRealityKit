@@ -24,6 +24,7 @@ class VolumeLightPassSetting {
         let library = device.makeBundleDebugLibrary()!
 
         let d = MTLRenderPipelineDescriptor()
+        d.label = #file
         d.inputPrimitiveTopology = .triangle
         d.rasterSampleCount = 1
         d.vertexFunction = library.makeFunction(name: "volume_light_vertex")!
@@ -66,6 +67,7 @@ class VolumeLightPassSetting {
 
     func encode(in commandBuffer: any MTLCommandBuffer, uniforms: Uniforms, lights: [VolumeSpotLight]) {
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
+        encoder.label = String(describing: type(of: self))
         defer {encoder.endEncoding()}
         encoder.setRenderPipelineState(state)
         guard !lights.isEmpty else { return }
@@ -78,6 +80,7 @@ class VolumeLightPassSetting {
                 worldFromModelTransform: .init(diagonal: [1, 1, 1, 1]), // model transform could be per light
                 worldFromCameraTransform: cameraTransform,
                 cameraFromWorldTransform: cameraTransform.inverse,
+                cameraFromModelTransform: .init(diagonal: [1, 1, 1, 1]), // TODO
                 projectionFromCameraTransform: vid == 0 ? uniforms.projection0 : uniforms.projection1,
                 cameraFromProjectionTransform: vid == 0 ? uniforms.projection0Inverse : uniforms.projection1Inverse,
             )

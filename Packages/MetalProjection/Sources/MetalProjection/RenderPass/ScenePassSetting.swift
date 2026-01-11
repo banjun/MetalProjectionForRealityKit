@@ -14,6 +14,7 @@ class ScenePassSetting {
     let depthStencilState: MTLDepthStencilState
     private var materialTextureCache: [Entity.ID: MTLTexture] = [:]
     let gNormalTexture: any MTLTexture
+    let gViewZTexture: any MTLTexture
 
     convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat = .depth16Unorm, viewCount: Int) {
 #if DEBUG
@@ -29,12 +30,17 @@ class ScenePassSetting {
         self.device = device
         descriptor = RenderPassEncoderSettings.renderPassDescriptor(texture: outTexture, depthTexture: depthTexture)
 
-        // add gNormalTexture
-        self.gNormalTexture = RenderPassEncoderSettings.makeTexture(device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba16Float, viewCount: outTexture.arrayLength)
+        // add g-buffers
+        self.gNormalTexture = RenderPassEncoderSettings.makeTexture(device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rg16Snorm, viewCount: outTexture.arrayLength)
+        self.gViewZTexture = RenderPassEncoderSettings.makeTexture(device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba16Float, viewCount: outTexture.arrayLength)
         descriptor.colorAttachments[1].texture = gNormalTexture
         descriptor.colorAttachments[1].loadAction = .clear
         descriptor.colorAttachments[1].storeAction = .store
         descriptor.colorAttachments[1].clearColor = MTLClearColor(red: 0, green: 0, blue: 1, alpha: 0)
+        descriptor.colorAttachments[2].texture = gViewZTexture
+        descriptor.colorAttachments[2].loadAction = .clear
+        descriptor.colorAttachments[2].storeAction = .store
+        descriptor.colorAttachments[2].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
 
         self.outTexture = outTexture
         self.depthTexture = depthTexture
@@ -47,11 +53,12 @@ class ScenePassSetting {
     }
 
     @MainActor func createState() {
-        state = RenderPassEncoderSettings.makeRenderPipelineState(device: device, vertexFunction: "render_vertex", fragmentFunction: "render_fragment", llMeshes: llMeshes, pixelFormats: [outTexture.pixelFormat, gNormalTexture.pixelFormat], depthPixelFormat: depthTexture.pixelFormat)
+        state = RenderPassEncoderSettings.makeRenderPipelineState(device: device, vertexFunction: "render_vertex", fragmentFunction: "render_fragment", llMeshes: llMeshes, pixelFormats: [outTexture.pixelFormat, gNormalTexture.pixelFormat, gViewZTexture.pixelFormat], depthPixelFormat: depthTexture.pixelFormat)
     }
 
     @MainActor func encode(in commandBuffer: any MTLCommandBuffer, cameraTransformAndProjections: [(transform: simd_float4x4, projection: simd_float4x4)], entities: [Entity]) {
         guard let state, let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
+        encoder.label = String(describing: type(of: self))
         defer {encoder.endEncoding()}
         encoder.setRenderPipelineState(state)
 
@@ -61,6 +68,7 @@ class ScenePassSetting {
                            worldFromModelTransform: .init(), // set later in loop
                            worldFromCameraTransform: $0.transform,
                            cameraFromWorldTransform: $0.transform.inverse,
+                           cameraFromModelTransform: .init(), // set later in loop
                            projectionFromCameraTransform: $0.projection,
                            cameraFromProjectionTransform: $0.projection.inverse)
         }
@@ -99,6 +107,7 @@ class ScenePassSetting {
             let worldFromModelTransform = entity.convert(transform: .identity, to: nil).matrix
             for i in 0..<vertexUniforms.count {
                 vertexUniforms[i].worldFromModelTransform = worldFromModelTransform
+                vertexUniforms[i].cameraFromModelTransform = vertexUniforms[i].cameraFromWorldTransform * worldFromModelTransform
             }
             encoder.setVertexBytes(&vertexUniforms, length: MemoryLayout<VertexUniforms>.stride * vertexUniforms.count, index: 1)
             encoder.drawIndexedPrimitives(type: .triangle, indexCount: llMesh.parts.reduce(into: 0) {$0 += $1.indexCount}, indexType: .uint32, indexBuffer: llMesh.readIndices(using: commandBuffer), indexBufferOffset: 0, instanceCount: viewCount)

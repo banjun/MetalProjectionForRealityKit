@@ -13,11 +13,13 @@ struct VertexOut {
     float4 position [[position]];
     uint vid [[render_target_array_index]];
     float2 uv;
-    float3 normal;
+    half2 normal;
+    half4 viewPos;
 };
 struct FragmentOut {
     float4 color [[color(0)]]; // array, indexed by [[render_target_array_index]]
-    float4 normal [[color(1)]];
+    half2 normal [[color(1)]];
+    half4 viewPos [[color(2)]];
 };
 
 [[vertex]]
@@ -33,7 +35,8 @@ VertexOut render_vertex(VertexIn in [[stage_in]],
     VertexOut out;
     out.position = pClip4;
     out.uv = in.uv;
-    out.normal = normalize((uniform.worldFromModelTransform * float4(in.normal, 0)).xyz); // TODO: use NormalMatrix as normal is inverse-transpose
+    out.normal = half2(normalize((uniform.cameraFromModelTransform * float4(in.normal, 0)).xyz).xy); // TODO: use NormalMatrix as normal is inverse-transpose
+    out.viewPos = half4(pView4);
     out.vid = vid;
     //    out.v.position = in.position;
     //    out.v.uv = in.uv;
@@ -60,7 +63,8 @@ FragmentOut render_fragment(VertexOut in [[stage_in]],
     FragmentOut out;
     // TODO
     out.color = baseColor;
-    out.normal = float4(in.normal, 1);
+    out.normal =in.normal;
+    out.viewPos = in.viewPos;
     return out;
 }
 
@@ -251,9 +255,11 @@ FragmentOut volume_light_fragment(VolumeLightFragment in [[stage_in]]) {
     auto spotCos = dot(in.lightDirInWorld, normalize(lightToFragment));
     auto n = normalize(float3(in.posInModel.x, 0, in.posInModel.z));
     auto viewCos = dot(n, -normalize(float3(viewDirection.x, 0, viewDirection.z)));
-    auto attenuation = clamp(distanceAttenuation, 0.0, 0.8)
-    * smoothstep(in.lightAngleCos, in.lightAngleCos + 0.05, spotCos)
-    * smoothstep(0.5, 0.8, viewCos);
+    auto attenuation = smoothstep(0.0, 0.8, distanceAttenuation)
+//    * clamp(spotCos, 0.0, 1.0)
+//    * smoothstep(in.lightAngleCos, in.lightAngleCos + 0.05, spotCos)
+    * smoothstep(0.4, 0.8, viewCos)
+    ;
 
     FragmentOut out;
     out.color = float4(in.color.xyz * in.color.w * attenuation, 1);
@@ -262,8 +268,8 @@ FragmentOut volume_light_fragment(VolumeLightFragment in [[stage_in]]) {
 
 [[fragment]]
 FragmentOut surface_light_fragment(FullscreenIn in [[stage_in]],
-                                   depth2d_array<float> depthTex [[texture(0)]],
-                                   texture2d_array<float> gNormalTex [[texture(1)]],
+                                   texture2d_array<half> gViewPosTex [[texture(0)]],
+                                   texture2d_array<half> gNormalTex [[texture(1)]],
                                    const device SurfaceLightUniforms *uniforms [[buffer(0)]],
                                    const device VolumeSpotLight *lights [[buffer(1)]]) {
     // Instance ID decode
@@ -271,30 +277,33 @@ FragmentOut surface_light_fragment(FullscreenIn in [[stage_in]],
     auto vid = in.vid;
     auto lid = in.iid / viewCount;
     // G-Buffer
-    auto nWorld = gNormalTex.sample(linearSampler, in.uv, vid).rgb;
-    auto depth = depthTex.sample(linearSampler, in.uv, vid);
-    auto ndc = float4(in.uv * 2 - 1, depth, 1);
-    auto posInView = uniforms[vid].projectionInverse * ndc;
-    if (posInView.w < 1e-6) discard_fragment();
-    posInView.xyz /= posInView.w;
-    auto posInWorld = (uniforms[vid].worldFromCameraTransform * posInView).xyz;
+    auto nView = half3(gNormalTex.sample(linearSampler, in.uv, vid).rg, 0);
+    auto nViewZZ = max(half(0), 1 - nView.r * nView.r - nView.g * nView.g);
+    nView.z = sqrt(nViewZZ); // restore z from rg16Snorm
+//    auto zView = float(gViewZTex.sample(linearSampler, in.uv, vid).r);
+//    auto ndc = float4(float2(in.uv.x, 1 - in.uv.y) * 2 - 1, 1, 1); // z=1
+//    auto rayInView4 = uniforms[vid].cameraFromProjectionTransform * ndc;
+//    auto rayInView = rayInView4.xyz / rayInView4.w;
+//    auto posInView = rayInView * (zView / rayInView.z);
+    auto posInView = float3(gViewPosTex.sample(linearSampler, in.uv, vid).xyz);
     // Light vectors
     auto light = lights[lid];
-    float3 L = light.position - posInWorld;
-    float dist2 = dot(L, L);
-    float dist = sqrt(dist2);
-    float3 Ldir = L / dist;
+    auto L = light.positionInView[vid] - posInView;
+    auto dist2 = dot(L, L);
+    auto invDist = rsqrt(dist2);
+    auto Ldir = L * invDist;
     // Attenuations
-    float distanceAtt = 1.0 / (1.0 + dist2);
-    float spotCos = dot(normalize(-light.direction), Ldir);
-    float spotAtt = smoothstep(light.angleCos, light.angleCos + 0.05, spotCos);
+    auto distanceAtt = 1.0 / (1.0 + dist2);
+    auto spotCos = dot(normalize(-light.directionInView[vid]), Ldir);
+    auto spotAtt = smoothstep(light.angleCos, light.angleCos + 0.05, spotCos);
     // Lambert
-    float NdotL = max(0.0, dot(nWorld, Ldir));
+    auto NdotL = max(float(0), dot(float3(nView), Ldir));
 
     float3 radiance = light.color * light.intensity
     * NdotL
     * distanceAtt
     * spotAtt
+    * spotCos
     ;
     FragmentOut out;
     out.color = float4(radiance, 1);

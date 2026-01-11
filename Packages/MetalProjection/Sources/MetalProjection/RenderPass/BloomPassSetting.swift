@@ -23,6 +23,7 @@ class BloomPassSetting {
         for (i, kawaseBlurOffset) in kawaseBlurOffsets.enumerated() {
             let (descriptor, outTexture) = descriptorAndOutTextures[i % descriptorAndOutTextures.count]
             guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { continue }
+            encoder.label = String(describing: type(of: self))
             defer {encoder.endEncoding()}
             encoder.setRenderPipelineState(state)
 

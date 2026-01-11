@@ -5,19 +5,28 @@ import QuartzCore
 import Observation
 import MetalProjectionBridgingHeader
 
+private extension simd_float4 {
+    var xyz: simd_float3 {.init(x, y, z)}
+}
+
 extension VolumeSpotLight {
-    init(position: simd_float3, direction: simd_float3, angleCos: Float, color: simd_float3, intensity: Float) {
-        let angleSin = 1 - angleCos * angleCos
+    init(cameraFromWorld: (simd_float4x4, simd_float4x4), position: simd_float3, direction: simd_float3, angleCos: Float, color: simd_float3, intensity: Float) {
+        let angleSin = sqrt(max(0, 1 - angleCos * angleCos))
+        let angleTan = angleSin / angleCos
         let lightLength: Float = 10
         let worldFromModelTransform = Transform(
-            scale: .init(angleSin, 1, angleSin) * lightLength,
+            scale: .init(angleTan, 1, angleTan) * lightLength,
             rotation: .init(from: [0, -1, 0], to: direction),
             translation: position).matrix
         self.init(
             worldFromModelTransform: worldFromModelTransform,
             modelFromWorldTransform: worldFromModelTransform.inverse,
             position: position,
+            positionInView: (.init((cameraFromWorld.0 * simd_float4(position, 1)).xyz),
+                             .init((cameraFromWorld.1 * simd_float4(position, 1)).xyz)),
             direction: direction,
+            directionInView: (.init((cameraFromWorld.0 * simd_float4(direction, 0)).xyz),
+                              .init((cameraFromWorld.1 * simd_float4(direction, 0)).xyz)),
             angleCos: angleCos,
             color: color,
             intensity: intensity)
@@ -70,6 +79,7 @@ public final class MetalMap {
 
     @MainActor public init(device: MTLDevice = MTLCreateSystemDefaultDevice()!, pixelFormat: MTLPixelFormat = .rgba16Float, width: Int = 32, height: Int = 32, viewCount: Int = DeviceDependants.viewCount) {
         commandQueue = device.makeCommandQueue()!
+        commandQueue.label = String(describing: type(of: self))
 
         llTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount, textureUsage: [.renderTarget])) // arrayLength: 2 for left/right eye
         textureResource = try! .init(from: llTexture)
@@ -83,7 +93,7 @@ public final class MetalMap {
         brightPass = .init(device: device, width: width / 2, height: height / 2, pixelFormat: pixelFormat, viewCount: viewCount)
         bloomPass = .init(device: device, width: width / 4, height: height / 4, pixelFormat: pixelFormat, viewCount: viewCount)
         volumeLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, depthTexture: scenePass.depthTexture, viewCount: viewCount)
-        surfaceLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, gNormalTexture: scenePass.gNormalTexture, depthTexture: scenePass.depthTexture)
+        surfaceLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, gNormalTexture: scenePass.gNormalTexture, gViewZTexture: scenePass.gViewZTexture)
         compositePass = .init(device: device, outTexture: llTexture.read())
 
         debugLLTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount, textureUsage: []))
@@ -93,7 +103,13 @@ public final class MetalMap {
         depthToColorPass = .init(device: device, outTexture: debugMetalTexture)
     }
 
+    private var lastDraw: Date = .distantPast
+
     @MainActor func draw(_ entities: [Entity]) {
+        let now = Date()
+        guard now.timeIntervalSince(lastDraw) > (1.0 / 90) else { return }
+        lastDraw = now
+
         guard let worldTracker else {
             let arkitSession = ARKitSession()
             let worldTracker = WorldTrackingProvider()
@@ -116,25 +132,31 @@ public final class MetalMap {
             projection1Inverse: cameraTransformAndProjections.last!.projection.inverse,
         )
 
+        let cameraFromWorld = (uniforms.cameraTransformL.inverse, uniforms.cameraTransformR.inverse)
+        func light(position: simd_float3, direction: simd_float3, angleCos: Float, color: simd_float3, intensity: Float) -> VolumeSpotLight {
+            .init(cameraFromWorld: cameraFromWorld, position: position, direction: direction, angleCos: angleCos, color: color, intensity: intensity)
+            // TODO: compute view position in compute shader
+        }
+
         let time: Float = Float(CACurrentMediaTime())
         let lineLights1: [VolumeSpotLight] = (0..<32).map {
             let direction = simd_quatf(angle: time + 0.1 * Float($0), axis: [1, 0, 0]).act([0, -1, 0])
-            return .init(position: simd_float3((Float($0) - 15), 5, -5), direction: direction, angleCos: cos(.pi / 6), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0])))
+            return light(position: simd_float3((Float($0) - 15), 5, -5), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0])))
         }
         let lineLights2: [VolumeSpotLight] = (0..<32).map {
             let direction = simd_quatf(angle: time + 0.1 * Float($0), axis: [1, 0, 0]).act([0, -1, 0])
-            return .init(position: simd_float3((Float($0) - 15), 5, -10), direction: direction, angleCos: cos(.pi / 6), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0])))
+            return light(position: simd_float3((Float($0) - 15), 5, -10), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0])))
         }
         let lineLights3: [VolumeSpotLight] = (0..<32).map {
             let direction = simd_quatf(angle: time + 0.1 * Float($0), axis: [1, 0, 0]).act([0, -1, 0])
-            return .init(position: simd_float3((Float($0) - 15), 5, -15), direction: direction, angleCos: cos(.pi / 6), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0])))
+            return light(position: simd_float3((Float($0) - 15), 5, -15), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0])))
         }
         let mainLights: [VolumeSpotLight] = [
-            .init(position: .init(-1.0, 3, -1), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(0.25, 0.5, 1), intensity: 1),
-            .init(position: .init(-0.5, 3, -1), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * sin(time)]), angleCos: cos(.pi / 4), color: .init(1, 0.25, 0.5), intensity: 1),
-            .init(position: .init(0, 3, -1), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(1, 1, 1), intensity: 0.8),
-            .init(position: .init(0.5, 3, -1), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * -sin(time)]), angleCos: cos(.pi / 4), color: .init(0.25, 0.5, 1), intensity: 1),
-            .init(position: .init(1.0, 3, -1), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 4), color: .init(1, 0.25, 0.5), intensity: 1),
+            light(position: .init(-1.0, 3, -1), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 8), color: .init(0.25, 0.5, 1), intensity: 1),
+            light(position: .init(-0.5, 3, -1), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * sin(time)]), angleCos: cos(.pi / 8), color: .init(1, 0.25, 0.5), intensity: 1),
+            light(position: .init(0, 3, -1), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 8), color: .init(1, 1, 1), intensity: 0.8),
+            light(position: .init(0.5, 3, -1), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * -sin(time)]), angleCos: cos(.pi / 8), color: .init(0.25, 0.5, 1), intensity: 1),
+            light(position: .init(1.0, 3, -1), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 8), color: .init(1, 0.25, 0.5), intensity: 1),
         ]
         let lights: [VolumeSpotLight] = [
             isMainLightsEnabled ? mainLights : [],
@@ -170,7 +192,7 @@ public final class MetalMap {
         switch debugBlit {
         case .none: break
         case .scene?: blitToDebugTexture(from: scenePass.outTexture)
-        case .normal?: blitToDebugTexture(from: scenePass.gNormalTexture)
+        case .normal?: copyPass.encode(in: commandBuffer, inTexture: scenePass.gNormalTexture)
         case .depth?: depthToColorPass.encode(in: commandBuffer, inTexture: scenePass.depthTexture)
         case .bright?: copyPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
         case .bloom?: if let bloomOut {copyPass.encode(in: commandBuffer, inTexture: bloomOut)}

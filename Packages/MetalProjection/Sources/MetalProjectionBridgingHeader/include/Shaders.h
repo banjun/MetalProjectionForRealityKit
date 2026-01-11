@@ -15,6 +15,7 @@ struct VertexUniforms {
     simd_float4x4 worldFromModelTransform;
     simd_float4x4 worldFromCameraTransform;
     simd_float4x4 cameraFromWorldTransform;
+    simd_float4x4 cameraFromModelTransform;
     simd_float4x4 projectionFromCameraTransform;
     simd_float4x4 cameraFromProjectionTransform;
 };
@@ -35,7 +36,9 @@ struct VolumeSpotLight {
     simd_float4x4 worldFromModelTransform;
     simd_float4x4 modelFromWorldTransform;
     simd_float3 position;
+    simd_float3 positionInView[2];
     simd_float3 direction;
+    simd_float3 directionInView[2];
     float angleCos;
     simd_float3 color;
     float intensity;
@@ -44,6 +47,7 @@ struct VolumeSpotLight {
 
 struct SurfaceLightUniforms {
     int viewCount; // same value across uniforms[i], so that uniforms[0].viewCount should be used
-    simd_float4x4 projectionInverse;
+    simd_float4x4 cameraFromProjectionTransform;
     simd_float4x4 worldFromCameraTransform;
+    simd_float4x4 cameraFromWorldTransform;
 };
