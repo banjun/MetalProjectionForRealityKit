@@ -77,6 +77,8 @@ public final class MetalMap {
     private let copyPass: CopyPassSetting
     private let depthToColorPass: DepthToColorPassSetting
 
+    public var dmxHolder: DMXHolder?
+
     @MainActor public init(device: MTLDevice = MTLCreateSystemDefaultDevice()!, pixelFormat: MTLPixelFormat = .rgba16Float, width: Int = 32, height: Int = 32, viewCount: Int = DeviceDependants.viewCount) {
         commandQueue = device.makeCommandQueue()!
         commandQueue.label = String(describing: type(of: self))
@@ -133,9 +135,19 @@ public final class MetalMap {
         )
 
         let cameraFromWorld = (uniforms.cameraTransformL.inverse, uniforms.cameraTransformR.inverse)
-        func light(position: simd_float3, direction: simd_float3, angleCos: Float, color: simd_float3, intensity: Float) -> VolumeSpotLight {
-            .init(cameraFromWorld: cameraFromWorld, position: position, direction: direction, angleCos: angleCos, color: color, intensity: intensity)
+        let dmx = dmxHolder?.dmx.value
+        func light(position: simd_float3, direction: simd_float3, angleCos: Float, color: simd_float3, intensity: Float, dmxStart: Int? = nil) -> VolumeSpotLight {
+            var l = VolumeSpotLight(cameraFromWorld: cameraFromWorld, position: position, direction: direction, angleCos: angleCos, color: color, intensity: intensity)
             // TODO: compute view position in compute shader
+            if let dmx, let start = dmxStart {
+                let s = start - 1 // start channel is 1-origin
+                l.color = .init(SIMD3<UInt8>(dmx[s + 0], dmx[s + 1], dmx[s + 2])) / 255.0
+                l.intensity = .init(dmx[s + 3]) / 255.0
+                // 4,5: pan
+                // 6,7: tilt
+                // -- stride = 8 --
+            }
+            return l
         }
 
         let time: Float = Float(CACurrentMediaTime())
@@ -152,11 +164,11 @@ public final class MetalMap {
             return light(position: simd_float3((Float($0) - 15), 5, -15), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0])))
         }
         let mainLights: [VolumeSpotLight] = [
-            light(position: .init(-1.0, 3, -1), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(0.25, 0.5, 1), intensity: 1),
-            light(position: .init(-0.5, 3, -1), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * sin(time)]), angleCos: cos(.pi / 10), color: .init(1, 0.25, 0.5), intensity: 1),
-            light(position: .init(0, 3, -1), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(1, 1, 1), intensity: 0.8),
-            light(position: .init(0.5, 3, -1), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * -sin(time)]), angleCos: cos(.pi / 10), color: .init(0.25, 0.5, 1), intensity: 1),
-            light(position: .init(1.0, 3, -1), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(1, 0.25, 0.5), intensity: 1),
+            light(position: .init(-1.0, 3, -1), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(0.25, 0.5, 1), intensity: 1, dmxStart: 1),
+            light(position: .init(-0.5, 3, -1), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * sin(time)]), angleCos: cos(.pi / 10), color: .init(1, 0.25, 0.5), intensity: 1, dmxStart: 1 + 8),
+            light(position: .init(0, 3, -1), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(1, 1, 1), intensity: 0.8, dmxStart: 1 + 8 * 2),
+            light(position: .init(0.5, 3, -1), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * -sin(time)]), angleCos: cos(.pi / 10), color: .init(0.25, 0.5, 1), intensity: 1, dmxStart: 1 + 8 * 3),
+            light(position: .init(1.0, 3, -1), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(1, 0.25, 0.5), intensity: 1, dmxStart: 1 + 8 * 4),
         ]
         let lights: [VolumeSpotLight] = [
             isMainLightsEnabled ? mainLights : [],
