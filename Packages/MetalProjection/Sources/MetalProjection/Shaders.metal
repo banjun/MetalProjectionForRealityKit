@@ -272,40 +272,46 @@ FragmentOut surface_light_fragment(FullscreenIn in [[stage_in]],
                                    texture2d_array<half> gNormalTex [[texture(1)]],
                                    const device SurfaceLightUniforms *uniforms [[buffer(0)]],
                                    const device VolumeSpotLight *lights [[buffer(1)]]) {
-    // Instance ID decode
-    auto viewCount = uniforms[0].viewCount;
     auto vid = in.vid;
-    auto lid = in.iid / viewCount;
-    // G-Buffer
+    // G-Buffer read
+    auto posInView = float3(gViewPosTex.sample(linearSampler, in.uv, vid).xyz);
+    if (any(isnan(posInView))) {return FragmentOut();}
     auto nView = half3(gNormalTex.sample(linearSampler, in.uv, vid).rg, 0);
+    if (all(nView.xy == 0)) {return FragmentOut();}
+    // normal decode
     auto nViewZZ = max(half(0), 1 - nView.r * nView.r - nView.g * nView.g);
     nView.z = sqrt(nViewZZ); // restore z from rg16Snorm
-//    auto zView = float(gViewZTex.sample(linearSampler, in.uv, vid).r);
-//    auto ndc = float4(float2(in.uv.x, 1 - in.uv.y) * 2 - 1, 1, 1); // z=1
-//    auto rayInView4 = uniforms[vid].cameraFromProjectionTransform * ndc;
-//    auto rayInView = rayInView4.xyz / rayInView4.w;
-//    auto posInView = rayInView * (zView / rayInView.z);
-    auto posInView = float3(gViewPosTex.sample(linearSampler, in.uv, vid).xyz);
-    // Light vectors
-    auto light = lights[lid];
-    auto L = light.positionInView[vid] - posInView;
-    auto dist2 = dot(L, L);
-    auto invDist = rsqrt(dist2);
-    auto Ldir = L * invDist;
-    // Attenuations
-    auto distanceAtt = 1.0 / (1.0 + dist2);
-    auto spotCos = dot(normalize(-light.directionInView[vid]), Ldir);
-    auto spotAtt = smoothstep(light.angleCos, light.angleCos + 0.05, spotCos);
-    // Lambert
-    auto NdotL = max(float(0), dot(float3(nView), Ldir));
 
-    float3 radiance = light.color * light.intensity
-    * NdotL
-    * distanceAtt
-    * spotAtt
-    * spotCos
-    ;
+    // NOTE: loop is faster than instancing for this shader. KPI is overdraw & texture cache miss
+    float3 outRGB = 0;
+    for (int lid = 0; lid < uniforms[vid].lightCount; ++lid) {
+        // Light vectors
+        auto light = lights[lid];
+        auto L = light.positionInView[vid] - posInView;
+        auto dist2 = dot(L, L);
+        auto invDist = rsqrt(dist2);
+        auto Ldir = L * invDist;
+
+        // Spot cut
+        auto spotCos = dot(-light.directionInView[vid], Ldir);
+        if (spotCos < light.angleCos) { continue; }
+        // Lambert cut
+        auto NdotL = dot(float3(nView), Ldir);
+        if (NdotL <= 0) { continue; }
+
+        // Attenuations
+        auto distanceAtt = 1.0 / (1.0 + dist2);
+        auto spotAtt = smoothstep(light.angleCos, light.angleCos + 0.05, spotCos);
+
+        float3 radiance = light.color * light.intensity
+        * NdotL
+        * distanceAtt
+        * spotAtt
+        * spotCos
+        ;
+        outRGB += radiance;
+    }
     FragmentOut out;
-    out.color = float4(radiance, 1);
+    out.color = float4(outRGB, 1);
     return out;
 }

@@ -47,6 +47,7 @@ struct VolumeSpotLight {
 
 struct SurfaceLightUniforms {
     int viewCount; // same value across uniforms[i], so that uniforms[0].viewCount should be used
+    int lightCount;
     simd_float4x4 cameraFromProjectionTransform;
     simd_float4x4 worldFromCameraTransform;
     simd_float4x4 cameraFromWorldTransform;

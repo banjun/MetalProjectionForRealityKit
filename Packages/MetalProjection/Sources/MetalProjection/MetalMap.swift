@@ -93,7 +93,7 @@ public final class MetalMap {
         brightPass = .init(device: device, width: width / 2, height: height / 2, pixelFormat: pixelFormat, viewCount: viewCount)
         bloomPass = .init(device: device, width: width / 4, height: height / 4, pixelFormat: pixelFormat, viewCount: viewCount)
         volumeLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, depthTexture: scenePass.depthTexture, viewCount: viewCount)
-        surfaceLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, gNormalTexture: scenePass.gNormalTexture, gViewZTexture: scenePass.gViewZTexture)
+        surfaceLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, gNormalTexture: scenePass.gNormalTexture, gViewPosTexture: scenePass.gViewPosTexture)
         compositePass = .init(device: device, outTexture: llTexture.read())
 
         debugLLTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount, textureUsage: []))
@@ -152,11 +152,11 @@ public final class MetalMap {
             return light(position: simd_float3((Float($0) - 15), 5, -15), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0])))
         }
         let mainLights: [VolumeSpotLight] = [
-            light(position: .init(-1.0, 3, -1), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 8), color: .init(0.25, 0.5, 1), intensity: 1),
-            light(position: .init(-0.5, 3, -1), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * sin(time)]), angleCos: cos(.pi / 8), color: .init(1, 0.25, 0.5), intensity: 1),
-            light(position: .init(0, 3, -1), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 8), color: .init(1, 1, 1), intensity: 0.8),
-            light(position: .init(0.5, 3, -1), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * -sin(time)]), angleCos: cos(.pi / 8), color: .init(0.25, 0.5, 1), intensity: 1),
-            light(position: .init(1.0, 3, -1), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 8), color: .init(1, 0.25, 0.5), intensity: 1),
+            light(position: .init(-1.0, 3, -1), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(0.25, 0.5, 1), intensity: 1),
+            light(position: .init(-0.5, 3, -1), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * sin(time)]), angleCos: cos(.pi / 10), color: .init(1, 0.25, 0.5), intensity: 1),
+            light(position: .init(0, 3, -1), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(1, 1, 1), intensity: 0.8),
+            light(position: .init(0.5, 3, -1), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * -sin(time)]), angleCos: cos(.pi / 10), color: .init(0.25, 0.5, 1), intensity: 1),
+            light(position: .init(1.0, 3, -1), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(1, 0.25, 0.5), intensity: 1),
         ]
         let lights: [VolumeSpotLight] = [
             isMainLightsEnabled ? mainLights : [],
@@ -197,7 +197,7 @@ public final class MetalMap {
         case .bright?: copyPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
         case .bloom?: if let bloomOut {copyPass.encode(in: commandBuffer, inTexture: bloomOut)}
         case .volumeLight?: blitToDebugTexture(from: volumeLightPass.outTexture)
-        case .surfaceLight?: blitToDebugTexture(from: surfaceLightPass.outTexture)
+        case .surfaceLight?: copyPass.encode(in: commandBuffer, inTexture: surfaceLightPass.outTexture)
         case .composite?: blitToDebugTexture(from: compositePass.outTexture)
         }
     }

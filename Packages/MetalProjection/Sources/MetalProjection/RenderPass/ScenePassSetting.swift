@@ -14,7 +14,7 @@ class ScenePassSetting {
     let depthStencilState: MTLDepthStencilState
     private var materialTextureCache: [Entity.ID: MTLTexture] = [:]
     let gNormalTexture: any MTLTexture
-    let gViewZTexture: any MTLTexture
+    let gViewPosTexture: any MTLTexture
 
     convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat = .depth16Unorm, viewCount: Int) {
 #if DEBUG
@@ -32,12 +32,12 @@ class ScenePassSetting {
 
         // add g-buffers
         self.gNormalTexture = RenderPassEncoderSettings.makeTexture(device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rg16Snorm, viewCount: outTexture.arrayLength)
-        self.gViewZTexture = RenderPassEncoderSettings.makeTexture(device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba16Float, viewCount: outTexture.arrayLength)
+        self.gViewPosTexture = RenderPassEncoderSettings.makeTexture(device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba16Float, viewCount: outTexture.arrayLength)
         descriptor.colorAttachments[1].texture = gNormalTexture
         descriptor.colorAttachments[1].loadAction = .clear
         descriptor.colorAttachments[1].storeAction = .store
         descriptor.colorAttachments[1].clearColor = MTLClearColor(red: 0, green: 0, blue: 1, alpha: 0)
-        descriptor.colorAttachments[2].texture = gViewZTexture
+        descriptor.colorAttachments[2].texture = gViewPosTexture
         descriptor.colorAttachments[2].loadAction = .clear
         descriptor.colorAttachments[2].storeAction = .store
         descriptor.colorAttachments[2].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
@@ -53,7 +53,7 @@ class ScenePassSetting {
     }
 
     @MainActor func createState() {
-        state = RenderPassEncoderSettings.makeRenderPipelineState(device: device, vertexFunction: "render_vertex", fragmentFunction: "render_fragment", llMeshes: llMeshes, pixelFormats: [outTexture.pixelFormat, gNormalTexture.pixelFormat, gViewZTexture.pixelFormat], depthPixelFormat: depthTexture.pixelFormat)
+        state = RenderPassEncoderSettings.makeRenderPipelineState(device: device, vertexFunction: "render_vertex", fragmentFunction: "render_fragment", llMeshes: llMeshes, pixelFormats: [outTexture.pixelFormat, gNormalTexture.pixelFormat, gViewPosTexture.pixelFormat], depthPixelFormat: depthTexture.pixelFormat)
     }
 
     @MainActor func encode(in commandBuffer: any MTLCommandBuffer, cameraTransformAndProjections: [(transform: simd_float4x4, projection: simd_float4x4)], entities: [Entity]) {
