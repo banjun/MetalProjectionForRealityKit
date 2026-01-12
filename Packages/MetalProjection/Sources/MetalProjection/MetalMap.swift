@@ -137,16 +137,27 @@ public final class MetalMap {
         let cameraFromWorld = (uniforms.cameraTransformL.inverse, uniforms.cameraTransformR.inverse)
         let dmx = dmxHolder?.dmx.value
         func light(position: simd_float3, direction: simd_float3, angleCos: Float, color: simd_float3, intensity: Float, dmxStart: Int? = nil) -> VolumeSpotLight {
-            var l = VolumeSpotLight(cameraFromWorld: cameraFromWorld, position: position, direction: direction, angleCos: angleCos, color: color, intensity: intensity)
-            // TODO: compute view position in compute shader
+            var color = color
+            var intensity = intensity
+            var direction = direction
             if let dmx, let start = dmxStart {
                 let s = start - 1 // start channel is 1-origin
-                l.color = .init(SIMD3<UInt8>(dmx[s + 0], dmx[s + 1], dmx[s + 2])) / 255.0
-                l.intensity = .init(dmx[s + 3]) / 255.0
-                // 4,5: pan
-                // 6,7: tilt
+                color = .init(SIMD3<UInt8>(dmx[s + 0], dmx[s + 1], dmx[s + 2])) / 255.0
+                intensity = .init(dmx[s + 3]) / 255.0
+                // 4,5: pan, panFine
+                // 6,7: tilt, tiltFine
+                let pan = Float(UInt16(dmx[s + 4]) << 8 + UInt16(dmx[s + 5])) / 0xFFFF
+                let tilt = Float(UInt16(dmx[s + 6]) << 8 + UInt16(dmx[s + 7])) / 0xFFFF
+                let panRange = 3 * Float.pi
+                let tiltRange = Float.pi
+                direction = (
+                    simd_quatf(angle: (pan - 0.5) * panRange, axis: [0,-1,0])
+                    * simd_quatf(angle: (tilt - 0.5) * tiltRange, axis: [-1,0,0])
+                ).act([0, -1, 0])
                 // -- stride = 8 --
             }
+            var l = VolumeSpotLight(cameraFromWorld: cameraFromWorld, position: position, direction: direction, angleCos: angleCos, color: color, intensity: intensity)
+            // TODO: compute view position in compute shader
             return l
         }
 
