@@ -152,7 +152,7 @@ public final class MetalMap {
                 let tiltRange = Float.pi
                 direction = (
                     simd_quatf(angle: (pan - 0.5) * panRange, axis: [0,-1,0])
-                    * simd_quatf(angle: (tilt - 0.5) * tiltRange, axis: [-1,0,0])
+                    * simd_quatf(angle: tilt * tiltRange, axis: [-1,0,0])
                 ).act([0, -1, 0])
                 // -- stride = 8 --
             }

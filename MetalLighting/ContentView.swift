@@ -51,7 +51,7 @@ struct ContentView: View {
                 case .volumeLight, .surfaceLight:
                     HStack {
                         Toggle("DMX", isOn: .init(get: {appModel.useDMX}, set: {appModel.useDMX = $0})).toggleStyle(.button)
-                        Divider()
+                        Divider().padding()
                         Toggle("Main", isOn: .init(get: {metalMap.isMainLightsEnabled}, set: {metalMap.isMainLightsEnabled = $0})).toggleStyle(.button)
                         Toggle("Line1", isOn: .init(get: {metalMap.isLineLights1Enabled}, set: {metalMap.isLineLights1Enabled = $0})).toggleStyle(.button)
                         Toggle("Line2", isOn: .init(get: {metalMap.isLineLights2Enabled}, set: {metalMap.isLineLights2Enabled = $0})).toggleStyle(.button)
