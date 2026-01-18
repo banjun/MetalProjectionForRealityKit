@@ -1,40 +1,32 @@
 import RealityKit
 import DMX
+import Foundation
 
 public protocol DMXHolderType {
-    var dmx: DMX { get }
+    var dmx: DMX? { get }
 }
 
 public struct DMXHolderComponent: Component {
     var dmxHolder: any DMXHolderType
 }
 
-@MainActor public final class DMXHolder: @MainActor DMXHolderType {
-    public let sink: Sink = .init()
+public final class DMXHolder: DMXHolderType {
+    public let sink: FastSink
     public let universe: UInt16
-    public var dmx: DMX = .init()
-    private var observation: Task<Void, Never>? {didSet {oldValue?.cancel()}}
-    public let multipeer = Multipeer()
-    public init(universe: UInt16) {
+    public var dmx: DMX? {sink.payloads[UInt16BE(integerLiteral: universe)]?.dmx}
+    @MainActor public let multipeer = Multipeer()
+    @MainActor public init(port: UInt16 = ACN_SDT_MULTICAST_PORT, universe: UInt16, interval: Duration = .milliseconds(1000 / 60)) {
         self.universe = universe
+        self.sink = .init(port: port, interval: interval)
     }
     public func start() {
-        observation = Task { [sink, multipeer, universe, weak self] in
-            await sink.start(universe: universe)
-            await sink.subscribeMultipeer(multipeer.receivedData)
-            multipeer.start()
-            for await payload in await sink.payloadsSequence {
-                guard let dmx = payload[.init(integerLiteral: universe)]?.dmx else { continue }
-                self?.dmx = dmx
-            }
-        }
+        sink.start(universe: universe)
+        sink.subscribeMultipeer(multipeer.receivedData)
+        multipeer.start()
     }
     public func stop() {
-        observation = nil
-        Task { [sink, multipeer, universe] in
-            await sink.unsubscribeMultipper()
-            multipeer.stop()
-            await sink.stop(universe: universe)
-        }
+        sink.unsubscribeMultipper()
+        multipeer.stop()
+        sink.stop(universe: universe)
     }
 }

@@ -135,7 +135,7 @@ public final class MetalMap {
         )
 
         let cameraFromWorld = (uniforms.cameraTransformL.inverse, uniforms.cameraTransformR.inverse)
-        let dmx = dmxHolder?.dmx.value
+        let dmx = dmxHolder?.dmx?.value
         func light(position: simd_float3, direction: simd_float3, angleCos: Float, color: simd_float3, intensity: Float, dmxStart: Int? = nil) -> VolumeSpotLight {
             var color = color
             var intensity = intensity

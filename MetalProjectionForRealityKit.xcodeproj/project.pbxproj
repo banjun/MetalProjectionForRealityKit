@@ -18,6 +18,7 @@
 		EA20CC6A2EB8B4E000555555 /* MetalProjectionForRealityKit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MetalProjectionForRealityKit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EA20CC6E2EB8B4E000555555 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 		EA22AC812F0171F600C5F1D2 /* MetalProjection */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = MetalProjection; sourceTree = "<group>"; };
+		EAE2D4732F169DFA00B8CED3 /* DMX */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = DMX; path = ../DMX; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -97,6 +98,7 @@
 				EA20CC6D2EB8B4E000555555 /* Packages */,
 				EA10E7862ED4650E00E3CCD0 /* MetalLighting */,
 				EA7F78162ED486EE00459707 /* Frameworks */,
+				EAE2D4732F169DFA00B8CED3 /* DMX */,
 				EA20CC6B2EB8B4E000555555 /* Products */,
 			);
 			sourceTree = "<group>";
