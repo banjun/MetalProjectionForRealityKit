@@ -1,5 +1,6 @@
 {
   "pathsToIds" : {
+    "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/CenterStage.usda" : "DD584E7A-AF50-469C-A2F5-11C9B97DB682",
     "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Floor.usda" : "2B859176-D84E-4B27-AF85-F86A8580D68F",
     "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/GridMaterial.usda" : "CB766F92-EE55-4A63-9401-E7B8C009764D",
     "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Immersive.usda" : "65F6F990-A780-4474-B78B-572E0E4E273D",
@@ -15,6 +16,7 @@
     "2B859176-D84E-4B27-AF85-F86A8580D68F" : -9212537857612797618,
     "52C2D577-42B9-4F08-89D4-490C594CE053" : -5332375917590127295,
     "AF09ED6F-1707-48FD-8720-65B998362C09" : -147839471872242376,
-    "D66134B1-3681-4A8E-AFE5-29F257229F3B" : 8953095871766394485
+    "D66134B1-3681-4A8E-AFE5-29F257229F3B" : 8953095871766394485,
+    "DD584E7A-AF50-469C-A2F5-11C9B97DB682" : -7844275569297362124
   }
 }

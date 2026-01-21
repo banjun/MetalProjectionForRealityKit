@@ -29,7 +29,7 @@ struct ImmersiveView: View {
                     let usdzEntity = try! await ModelEntity(named: "ありす4")
                     let llImporter = try! USDZLowLevelMeshImporter(usdz: usdzEntity)
 //                    let usdzLLEntity = try! llImporter.modelEntity()
-                    let usdzLLEntity = usdzEntity // NOTE: LowLevelMesh entity cannot be compatible with ModelSortGroup ???
+                    let usdzLLEntity = try! llImporter.modelEntity() // NOTE: LowLevelMesh entity cannot be compatible with ModelSortGroup ???
                     usdzLLEntity.position = [0, 1, -0.5]
                     usdzLLEntity.transform.rotation = .init(angle: .pi, axis: [0, 1, 0])
                     usdzLLEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
@@ -55,7 +55,7 @@ struct ImmersiveView: View {
                 await root.addChild({
                     let usdzEntity = try! await ModelEntity(named: "GridSphere")
                     let llImporter = try! USDZLowLevelMeshImporter(usdz: usdzEntity)
-                    let usdzLLEntity = usdzEntity
+                    let usdzLLEntity = try! llImporter.modelEntity()
                     usdzLLEntity.position = [0, 1, -0.5]
                     usdzLLEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
                     metalMap.llMeshes.append(llImporter.mesh)
@@ -65,7 +65,17 @@ struct ImmersiveView: View {
                 await root.addChild({
                     let usdzEntity = try! await ModelEntity(named: "Floor")
                     let llImporter = try! USDZLowLevelMeshImporter(usdz: usdzEntity)
-                    let usdzLLEntity = usdzEntity
+                    let usdzLLEntity = try! llImporter.modelEntity()
+                    usdzLLEntity.position = [0, 0, 0]
+                    usdzLLEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
+                    metalMap.llMeshes.append(llImporter.mesh)
+                    usdzLLEntity.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 1))
+                    return usdzLLEntity
+                }())
+                await root.addChild({
+                    let usdzEntity = try! await ModelEntity(named: "CenterStage")
+                    let llImporter = try! USDZLowLevelMeshImporter(usdz: usdzEntity)
+                    let usdzLLEntity = try! llImporter.modelEntity()
                     usdzLLEntity.position = [0, 0, 0]
                     usdzLLEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
                     metalMap.llMeshes.append(llImporter.mesh)
