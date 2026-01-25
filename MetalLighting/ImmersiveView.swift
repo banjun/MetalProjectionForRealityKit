@@ -82,6 +82,16 @@ struct ImmersiveView: View {
                     usdzLLEntity.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 1))
                     return usdzLLEntity
                 }())
+                await root.addChild({
+                    let usdzEntity = try! await ModelEntity(named: "Pillars")
+                    let llImporter = try! USDZLowLevelMeshImporter(usdz: usdzEntity)
+                    let usdzLLEntity = try! llImporter.modelEntity()
+                    usdzLLEntity.position = [0, 0, 0]
+                    usdzLLEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
+                    metalMap.llMeshes.append(llImporter.mesh)
+                    usdzLLEntity.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 1))
+                    return usdzLLEntity
+                }())
                 defer {MetalMapSystem.registerSystem()}
 
                 let viewCount = DeviceDependants.viewCount
@@ -114,42 +124,38 @@ struct ImmersiveView: View {
                     return texView
                 }())
 
-                await root.addChild({
-                    @MainActor func screenUV() -> SGVector {
-                        // decode CameraTransform & projection matrices from texture in 4x3 pixels. each row encodes 1 matrix.
-                        let uniforms = SGTexture.texture(metalMap.uniformsTextureResource)
-                        let cameraTransformL = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 0))
-                        let cameraTransformR = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 1))
-                        let cameraProjection0 = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 2))
-                        let cameraProjection1 = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 3))
-                        return .screenUV(cameraTransformL: cameraTransformL, cameraTransformR: cameraTransformR, cameraProjection0: cameraProjection0, cameraProjection1: cameraProjection1)
+                @MainActor func screenUV() -> SGVector {
+                    // decode CameraTransform & projection matrices from texture in 4x3 pixels. each row encodes 1 matrix.
+                    let uniforms = SGTexture.texture(metalMap.uniformsTextureResource)
+                    let cameraTransformL = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 0))
+                    let cameraTransformR = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 1))
+                    let cameraProjection0 = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 2))
+                    let cameraProjection1 = SGMatrix.decodeTexturePixel(texture: uniforms, offset: .vector2f(0, 3))
+                    return .screenUV(cameraTransformL: cameraTransformL, cameraTransformR: cameraTransformR, cameraProjection0: cameraProjection0, cameraProjection1: cameraProjection1)
+                }
+                @MainActor func projectedMap(textureArray: SGTexture, uv: SGVector) -> SGColor {
+                    let image: (Int) -> SGColor = {
+                        textureArray.image2DArrayColor4(index: .int($0), defaultValue: .transparentBlack, texcoord: uv, magFilter: .linear, minFilter: .linear, uWrapMode: .clampToEdge, vWrapMode: .clampToEdge, noFlipV: .int(1))
                     }
-                    @MainActor func projectedMap(textureArray: SGTexture, uv: SGVector) -> SGColor {
-                        let image: (Int) -> SGColor = {
-                            textureArray.image2DArrayColor4(index: .int($0), defaultValue: .transparentBlack, texcoord: uv, magFilter: .linear, minFilter: .linear, uWrapMode: .clampToEdge, vWrapMode: .clampToEdge, noFlipV: .int(1))
-                        }
-                        return geometrySwitchCameraIndex(mono: image(0), left: image(0), right: image(1))
-                    }
-                    @MainActor func projectedMap() -> SGColor {
-                        projectedMap(textureArray: .texture(metalMap.textureResource), uv: screenUV())
-                    }
+                    return geometrySwitchCameraIndex(mono: image(0), left: image(0), right: image(1))
+                }
+                @MainActor func projectedMap() -> SGColor {
+                    projectedMap(textureArray: .texture(metalMap.textureResource), uv: screenUV())
+                }
 
-                    let screenMaterial: ShaderGraphMaterial = await {
-                        let mapValue = projectedMap()
-                        #if targetEnvironment(simulator)
-                        let rgbFactor = SGValue.float(1)
-                        #else
-                        let rgbFactor = SGValue.float(1.5) // why different?
-                        #endif
-                        var m = try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb * rgbFactor, opacity: .zero, applyPostProcessToneMap: false, hasPremultipliedAlpha: true))
-                        m.faceCulling = .front
-                        return m
-                    }()
-                    let sphere = ModelEntity(mesh: .generateSphere(radius: 10000), materials: [screenMaterial])
+                @MainActor func screenMaterial() async -> ShaderGraphMaterial {
+                    let mapValue = projectedMap()
+                    var m = try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb, opacity: .zero, applyPostProcessToneMap: false, hasPremultipliedAlpha: true))
+                    m.faceCulling = .front
+                    return m
+                }
+                @MainActor func screenSphere(radius: Float) async -> Entity {
+                    let sphere = ModelEntity(mesh: .generateSphere(radius: radius), materials: [await screenMaterial()])
                     // model sort group could be used to invert depth order?
                     sphere.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 999))
                     return sphere
-                }())
+                }
+                await root.addChild(screenSphere(radius: 10000))
             }
         }
     }

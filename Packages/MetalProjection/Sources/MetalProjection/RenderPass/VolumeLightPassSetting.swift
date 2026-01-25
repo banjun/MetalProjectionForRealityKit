@@ -20,7 +20,7 @@ class VolumeLightPassSetting {
                   outTexture: RenderPassEncoderSettings.makeTexture(device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount),
                   depthTexture: depthTexture)
     }
-    init(device: any MTLDevice, outTexture: any MTLTexture, depthTexture: any MTLTexture, coneDivisionStep: Float = .pi / 4) {
+    init(device: any MTLDevice, outTexture: any MTLTexture, depthTexture: any MTLTexture, coneDivisionStep: Float = .pi / 8) {
         let library = device.makeBundleDebugLibrary()!
 
         let d = MTLRenderPipelineDescriptor()
@@ -88,7 +88,7 @@ class VolumeLightPassSetting {
         encoder.setVertexBytes(&vertexUniforms, length: MemoryLayout<VertexUniforms>.stride * vertexUniforms.count, index: 1)
         encoder.setDepthStencilState(depthStencilState)
         encoder.setFrontFacing(.clockwise)
-        encoder.setCullMode(.back)
+        encoder.setCullMode(.none)
         var lightCounts = lights.count
         lightsBuffer.contents().copyMemory(from: lights, byteCount: MemoryLayout<VolumeSpotLight>.stride * lightCounts)
         encoder.setVertexBuffer(lightsBuffer, offset: 0, index: 2)

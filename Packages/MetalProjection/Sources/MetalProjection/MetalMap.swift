@@ -60,6 +60,7 @@ public final class MetalMap {
     public var isLineLights1Enabled: Bool = false
     public var isLineLights2Enabled: Bool = false
     public var isLineLights3Enabled: Bool = false
+    public var lightBaseIntensity: Float = 2
 
     private var arkitSession: ARKitSession? {
         didSet {oldValue?.stop()}
@@ -106,11 +107,12 @@ public final class MetalMap {
     }
 
     private var lastDraw: Date = .distantPast
+    private var deviceAnchorHistory: [DeviceAnchor] = []
 
     @MainActor func draw(_ entities: [Entity]) {
-        let now = Date()
-        guard now.timeIntervalSince(lastDraw) > (1.0 / 90) else { return }
-        lastDraw = now
+//        let now = Date()
+//        guard now.timeIntervalSince(lastDraw) > (1.0 / 90) else { return }
+//        lastDraw = now
 
         guard let worldTracker else {
             let arkitSession = ARKitSession()
@@ -120,11 +122,23 @@ public final class MetalMap {
             self.worldTracker = worldTracker
             return
         }
-        guard let deviceAnchor = worldTracker.queryDeviceAnchor(atTimestamp: CACurrentMediaTime() + 0.01) else { return }
+        mach_continuous_time()
+        guard let deviceAnchorPredicted = worldTracker.queryDeviceAnchor(atTimestamp: CACurrentMediaTime() + 0.088) else { return }
+        #if targetEnvironment(simulator)
+        deviceAnchorHistory.append(deviceAnchorPredicted)
+        let deviceAnchorTransform = deviceAnchorHistory.count < 8 ? deviceAnchorPredicted.originFromAnchorTransform : {
+            let late = deviceAnchorHistory.removeFirst()
+            var t = deviceAnchorPredicted.originFromAnchorTransform
+            t.columns.3 = late.originFromAnchorTransform.columns.3
+            return t
+        }()
+        #else
+        let deviceAnchorTransform = deviceAnchorPredicted.originFromAnchorTransform
+        #endif
         guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }
         defer {commandBuffer.commit()}
 
-        let cameraTransformAndProjections = DeviceDependants.cameraTransformAndProjections(deviceAnchor: deviceAnchor)
+        let cameraTransformAndProjections = DeviceDependants.cameraTransformAndProjections(deviceAnchorTransform: deviceAnchorTransform)
         var uniforms = Uniforms(
             cameraTransformL: cameraTransformAndProjections.first!.transform,
             cameraTransformR: cameraTransformAndProjections.last!.transform,
@@ -143,7 +157,7 @@ public final class MetalMap {
             if let dmx, let start = dmxStart {
                 let s = start - 1 // start channel is 1-origin
                 color = .init(SIMD3<UInt8>(dmx[s + 0], dmx[s + 1], dmx[s + 2])) / 255.0
-                intensity = .init(dmx[s + 3]) / 255.0
+                intensity *= .init(dmx[s + 3]) / 255.0
                 // 4,5: pan, panFine
                 // 6,7: tilt, tiltFine
                 let pan = Float(UInt16(dmx[s + 4]) << 8 + UInt16(dmx[s + 5])) / 0xFFFF
@@ -163,23 +177,23 @@ public final class MetalMap {
         let time: Float = Float(CACurrentMediaTime())
         let dmxStride = 8
         let mainLights: [VolumeSpotLight] = [
-            light(position: .init(-1.0, 3, -1), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(0.25, 0.5, 1), intensity: 1, dmxStart: 1),
-            light(position: .init(-0.5, 3, -1), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * sin(time)]), angleCos: cos(.pi / 10), color: .init(1, 0.25, 0.5), intensity: 1, dmxStart: 1 + dmxStride),
-            light(position: .init(0, 3, -1), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(1, 1, 1), intensity: 0.8, dmxStart: 1 + dmxStride * 2),
-            light(position: .init(0.5, 3, -1), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * -sin(time)]), angleCos: cos(.pi / 10), color: .init(0.25, 0.5, 1), intensity: 1, dmxStart: 1 + dmxStride * 3),
-            light(position: .init(1.0, 3, -1), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(1, 0.25, 0.5), intensity: 1, dmxStart: 1 + dmxStride * 4),
+            light(position: .init(-1.0, 3, -1), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(0.25, 0.5, 1), intensity: lightBaseIntensity, dmxStart: 1),
+            light(position: .init(-0.5, 3, -1), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * sin(time)]), angleCos: cos(.pi / 10), color: .init(1, 0.25, 0.5), intensity: lightBaseIntensity, dmxStart: 1 + dmxStride),
+            light(position: .init(0, 3, -1), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(1, 1, 1), intensity: lightBaseIntensity * 0.8, dmxStart: 1 + dmxStride * 2),
+            light(position: .init(0.5, 3, -1), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * -sin(time)]), angleCos: cos(.pi / 10), color: .init(0.25, 0.5, 1), intensity: lightBaseIntensity, dmxStart: 1 + dmxStride * 3),
+            light(position: .init(1.0, 3, -1), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(1, 0.25, 0.5), intensity: lightBaseIntensity, dmxStart: 1 + dmxStride * 4),
         ]
         let lineLights1: [VolumeSpotLight] = (0..<32).map {
             let direction = simd_quatf(angle: time + 0.1 * Float($0), axis: [1, 0, 0]).act([0, -1, 0])
-            return light(position: simd_float3((Float($0) - 15), 5, -5), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0])), dmxStart: (mainLights.count + $0) * dmxStride + 1)
+            return light(position: simd_float3((Float($0) - 15), 5, -5), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, lightBaseIntensity * dot(direction, [0, -1, 0])), dmxStart: (mainLights.count + $0) * dmxStride + 1)
         }
         let lineLights2: [VolumeSpotLight] = (0..<32).map {
             let direction = simd_quatf(angle: time + 0.1 * Float($0), axis: [1, 0, 0]).act([0, -1, 0])
-            return light(position: simd_float3((Float($0) - 15), 5, -10), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0]))) // NOTE: up to 64 lights in 1 universe:, dmxStart: (mainLights.count + lineLights1.count + $0) * dmxStride + 1)
+            return light(position: simd_float3((Float($0) - 15), 5, -10), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, lightBaseIntensity * dot(direction, [0, -1, 0]))) // NOTE: up to 64 lights in 1 universe:, dmxStart: (mainLights.count + lineLights1.count + $0) * dmxStride + 1)
         }
         let lineLights3: [VolumeSpotLight] = (0..<32).map {
             let direction = simd_quatf(angle: time + 0.1 * Float($0), axis: [1, 0, 0]).act([0, -1, 0])
-            return light(position: simd_float3((Float($0) - 15), 5, -15), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0]))) // NOTE: up to 64 lights in 1 universe:, dmxStart: (mainLights.count + lineLights1.count + lineLights2.count + $0) * dmxStride + 1)
+            return light(position: simd_float3((Float($0) - 15), 5, -15), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, lightBaseIntensity * dot(direction, [0, -1, 0]))) // NOTE: up to 64 lights in 1 universe:, dmxStart: (mainLights.count + lineLights1.count + lineLights2.count + $0) * dmxStride + 1)
         }
         let lights: [VolumeSpotLight] = [
             isMainLightsEnabled ? mainLights : [],

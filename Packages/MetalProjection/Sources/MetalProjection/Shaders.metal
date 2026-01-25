@@ -134,47 +134,6 @@ float4 copyDepthToColor(FullscreenIn in [[stage_in]],
 }
 
 [[fragment]]
-float4 volumeLight_fragment(FullscreenIn in [[stage_in]],
-                            depth2d_array<float> depth [[texture(0)]],
-                            const device Uniforms &uniforms [[buffer(0)]],
-                            const device VolumeSpotLight *lights [[buffer(1)]],
-                            const device int &lightCount [[buffer(2)]]) {
-    simd_float4x4 projections[] = {uniforms.projection0, uniforms.projection1};
-    simd_float4x4 projectionInverses[] = {uniforms.projection0Inverse, uniforms.projection1Inverse};
-    simd_float4x4 cameraTransforms[] = {uniforms.cameraTransformL, uniforms.cameraTransformR};
-    auto projection = projections[in.vid];
-    auto projectionInverse = projectionInverses[in.vid];
-    auto cameraTransform = cameraTransforms[in.vid];
-
-    auto ndc = in.uv * 2 - 1;
-    auto ndc4 = float4(ndc.x, -ndc.y, 1, 1);
-    auto pView4 = projectionInverse * ndc4;
-    auto viewDirectionInView = pView4.xyz / pView4.w;
-    auto viewDirectionInWorld = normalize((cameraTransform * float4(viewDirectionInView, 0)).xyz);
-
-    auto t = 0.0;
-    auto cameraPos = cameraTransform.columns[3].xyz;
-    auto stepSize = 0.1;
-    auto MAX_STEPS = 128.0;
-    auto maxDistance = 5.0;
-    auto color = float3(0);
-
-    for (int i = 0; i < MAX_STEPS; i++) {
-        auto pos = cameraPos + viewDirectionInWorld * maxDistance * i / MAX_STEPS;
-        for (int l = 0; l < lightCount; l++) {
-            auto light = lights[l];
-            auto posFromLight = pos - light.position;
-            auto angle = dot(normalize(posFromLight), light.direction);
-            if (angle > light.angleCos) {
-                auto distanceAttenuation = 1 / length_squared(posFromLight);
-                color += light.color * light.intensity * distanceAttenuation / MAX_STEPS;
-            }
-        }
-    }
-    return float4(color, 1);
-}
-
-[[fragment]]
 float4 composite_fragment(FullscreenIn in [[stage_in]],
                           texture2d_array<float> scene [[texture(0)]],
                           texture2d_array<float> bloom [[texture(1)]],
@@ -194,7 +153,7 @@ float4 composite_fragment(FullscreenIn in [[stage_in]],
     auto sl = surfaceLight.sample(linearSampler, in.uv, in.vid);
     auto bloomIntensity = 0.25;
     auto volumeLightIntensity = 1.0;
-    auto surfaceLightIntensity = 2.0;
+    auto surfaceLightIntensity = 1.0;
     return float4(float4(sl.rgb * surfaceLightIntensity, s.a) + b * bloomIntensity + vl * volumeLightIntensity);
 }
 
@@ -248,18 +207,38 @@ VolumeLightFragment volume_light_vertex(VolumeLightVertex in [[stage_in]],
 }
 
 [[fragment]]
-FragmentOut volume_light_fragment(VolumeLightFragment in [[stage_in]]) {
-    auto viewDirection = normalize(in.posInModel - in.cameraInModel);
+FragmentOut volume_light_fragment(VolumeLightFragment in [[stage_in]],
+                                  bool front_facing [[front_facing]]) {
+    // auto lightDirInModel = float3(0, -1, 0);
+    // auto cameraToLightCos = dot(lightDirInModel, normalize(in.cameraInModel));
+    auto cameraToPos = in.posInModel - in.cameraInModel;
+    auto viewDirection = normalize(float3(cameraToPos.x, 0, cameraToPos.z));
     auto lightToFragment = in.posInWorld - in.lightPosInWorld;
-    auto distanceAttenuation = 1.0 / (1.0 + length_squared(lightToFragment));
-    auto spotCos = dot(in.lightDirInWorld, normalize(lightToFragment));
+    auto lightToFragmentDistance = length(lightToFragment);
+    auto distanceAttenuation = (exp(-3 * lightToFragmentDistance) + 0.1 * exp(-0.1 * lightToFragmentDistance)) / 1.1;
+    // auto spotCos = dot(in.lightDirInWorld, normalize(lightToFragment));
     auto n = normalize(float3(in.posInModel.x, 0, in.posInModel.z));
-    auto viewCos = dot(n, -normalize(float3(viewDirection.x, 0, viewDirection.z)));
-    auto attenuation = smoothstep(0.0, 0.8, distanceAttenuation)
-//    * clamp(spotCos, 0.0, 1.0)
-//    * smoothstep(in.lightAngleCos, in.lightAngleCos + 0.05, spotCos)
-    * smoothstep(0.4, 0.8, viewCos)
-    ;
+    auto viewCos = dot(n, -viewDirection);
+    // auto discEmission = 1 + 3 * exp(-100000 * pow(-in.posInModel.y - 0.03, 2));
+    // auto rootDiscBoost = front_facing ? (-in.posInModel.y < 0.1 ? 0 : 1) : (1 + smoothstep(-0.03, -0.025, in.posInModel.y));
+    //    auto viewCos = dot(n, -viewDirection);
+    auto vv = front_facing ? dot(n, normalize(-float3(cameraToPos.x, 0, cameraToPos.z))) : 0;
+
+    auto cameraPitch = smoothstep(0, 1.1, abs(dot(float3(0, -1, 0), normalize(in.cameraInModel))));
+    auto posLength = exp(-20 * length(in.posInModel.xz));
+
+    // NOTE: As cameraInModel might be incorrectly normalized, we can just compare xz & y
+    auto cameraInModelXZLength = length(in.cameraInModel.xz);
+    auto innerCone = smoothstep(-0.01, 0.01, -in.cameraInModel.y - cameraInModelXZLength);
+    auto rootCut = smoothstep(0, 0.001, -in.posInModel.y - 0.003);
+    auto viewCut = smoothstep(0.4, 0.9, max(0.0, cameraPitch * posLength) + max(0.0, vv));
+
+    auto attenuation = 1
+    * smoothstep(0.01, 0.7, distanceAttenuation)
+    * max(innerCone, 1
+          * rootCut
+          * viewCut
+          );
 
     FragmentOut out;
     out.color = float4(in.color.xyz * in.color.w * attenuation, 1);
@@ -300,10 +279,10 @@ FragmentOut surface_light_fragment(FullscreenIn in [[stage_in]],
         if (NdotL <= 0) { continue; }
 
         // Attenuations
-        auto distanceAtt = 1.0 / (1.0 + dist2);
+        auto distanceAtt = exp(-0.5 * sqrt(dist2)); // 1.0 / (1.0 + dist2);
         auto spotAtt = smoothstep(light.angleCos, light.angleCos + 0.05, spotCos);
 
-        float3 radiance = light.color * light.intensity
+        float3 radiance = light.color * (light.intensity)
         * NdotL
         * distanceAtt
         * spotAtt
@@ -311,7 +290,7 @@ FragmentOut surface_light_fragment(FullscreenIn in [[stage_in]],
         ;
         outRGB += radiance;
     }
-    FragmentOut out;
-    out.color = float4(outRGB, 1);
-    return out;
+    return FragmentOut {
+        .color = float4(outRGB, 1),
+    };
 }

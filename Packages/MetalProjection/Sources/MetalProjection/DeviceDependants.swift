@@ -45,7 +45,10 @@ public enum DeviceDependants {
 }
 extension DeviceDependants {
     static func cameraTransformAndProjections(deviceAnchor: DeviceAnchor) -> [(transform: simd_float4x4, projection: simd_float4x4)] {
-        let cameraTransform = deviceAnchor.originFromAnchorTransform
+        cameraTransformAndProjections(deviceAnchorTransform: deviceAnchor.originFromAnchorTransform)
+    }
+    static func cameraTransformAndProjections(deviceAnchorTransform: matrix_float4x4) -> [(transform: simd_float4x4, projection: simd_float4x4)] {
+        let cameraTransform = deviceAnchorTransform
 #if targetEnvironment(simulator)
         return [(cameraTransform, projection)]
 #else

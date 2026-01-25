@@ -22,7 +22,7 @@ struct ContentView: View {
                 let e = await ModelEntity(mesh: .generatePlane(width: width, height: height), materials: [{
                     let color = SGTexture.texture(metalMap.debugTextureResource)
                         .image2DArrayColor4(index: .int(vid), defaultValue: .transparentBlack, magFilter: .nearest, minFilter: .nearest, uWrapMode: .clampToEdge, vWrapMode: .clampToEdge, noFlipV: .int(1))
-                    return try! await ShaderGraphMaterial(surface: unlitSurface(color: color.rgb, opacity: color.a, applyPostProcessToneMap: false))
+                    return try! await ShaderGraphMaterial(surface: unlitSurface(color: color.rgb, opacity: color.a, applyPostProcessToneMap: true))
                 }()])
                 e.position.y = Float((vid * 2 - 1) * (DeviceDependants.viewCount - 1)) * (height / 2 + 0.03)
                 e.position.z = -0.175
@@ -52,10 +52,19 @@ struct ContentView: View {
                     HStack {
                         Toggle("DMX", isOn: .init(get: {appModel.useDMX}, set: {appModel.useDMX = $0})).toggleStyle(.button)
                         Divider().padding()
-                        Toggle("Main", isOn: .init(get: {metalMap.isMainLightsEnabled}, set: {metalMap.isMainLightsEnabled = $0})).toggleStyle(.button)
-                        Toggle("Line1", isOn: .init(get: {metalMap.isLineLights1Enabled}, set: {metalMap.isLineLights1Enabled = $0})).toggleStyle(.button)
-                        Toggle("Line2", isOn: .init(get: {metalMap.isLineLights2Enabled}, set: {metalMap.isLineLights2Enabled = $0})).toggleStyle(.button)
-                        Toggle("Line3", isOn: .init(get: {metalMap.isLineLights3Enabled}, set: {metalMap.isLineLights3Enabled = $0})).toggleStyle(.button)
+                        VStack {
+                            @Bindable var metalMap = metalMap
+                            HStack {
+                                Toggle("Main", isOn: .init(get: {metalMap.isMainLightsEnabled}, set: {metalMap.isMainLightsEnabled = $0})).toggleStyle(.button)
+                                Toggle("Line1", isOn: .init(get: {metalMap.isLineLights1Enabled}, set: {metalMap.isLineLights1Enabled = $0})).toggleStyle(.button)
+                                Toggle("Line2", isOn: .init(get: {metalMap.isLineLights2Enabled}, set: {metalMap.isLineLights2Enabled = $0})).toggleStyle(.button)
+                                Toggle("Line3", isOn: .init(get: {metalMap.isLineLights3Enabled}, set: {metalMap.isLineLights3Enabled = $0})).toggleStyle(.button)
+                            }
+                            HStack {
+                                Text("Base Intensity = \(metalMap.lightBaseIntensity, format: .number.precision(.fractionLength(3)))")
+                                Slider(value: $metalMap.lightBaseIntensity, in: 1...10)
+                            }
+                        }
                     }
                 default: Text("No Options for \(metalMap.debugBlit?.rawValue ?? "none")")
                 }
