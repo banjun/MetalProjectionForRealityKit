@@ -72,7 +72,7 @@ public final class MetalMap {
     public let debugTextureResource: TextureResource
     public var debugBlit: DebugBlit? = .surfaceLight
     public enum DebugBlit: String, Hashable, Identifiable, CaseIterable {
-        case scene, normal, depth, bright, bloom, volumeLight, surfaceLight, composite
+        case scene, normal, emissive, depth, bright, bloom, volumeLight, surfaceLight, composite
         public var id: String {rawValue}
     }
     private let copyPass: CopyPassSetting
@@ -230,6 +230,7 @@ public final class MetalMap {
         case .none: break
         case .scene?: blitToDebugTexture(from: scenePass.outTexture)
         case .normal?: copyPass.encode(in: commandBuffer, inTexture: scenePass.gNormalTexture)
+        case .emissive?: copyPass.encode(in: commandBuffer, inTexture: scenePass.gEmissiveTexture)
         case .depth?: depthToColorPass.encode(in: commandBuffer, inTexture: scenePass.depthTexture)
         case .bright?: copyPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
         case .bloom?: if let bloomOut {copyPass.encode(in: commandBuffer, inTexture: bloomOut)}

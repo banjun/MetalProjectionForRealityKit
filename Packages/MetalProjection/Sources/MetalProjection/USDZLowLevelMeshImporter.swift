@@ -25,7 +25,7 @@ public struct USDZLowLevelMeshImporter {
             let instance = meshInstances.first {$0.model == model.id}
             let transform = instance.map {$0.transform} ?? simd_float4x4(diagonal: [1,1,1,1])
             for part in model.parts {
-                guard let triangleIndices = part.triangleIndices else { return }
+                guard let triangleIndices = part.triangleIndices else { continue }
                 let indexOffset = totalIndexCount
                 let indexCount = triangleIndices.count
                 defer {totalIndexCount += indexCount}
@@ -41,10 +41,10 @@ public struct USDZLowLevelMeshImporter {
                     $0.max.y = max($0.max.y, $1.y)
                     $0.max.z = max($0.max.z, $1.z)
                 }
-                let llPart = LowLevelMesh.Part(indexOffset: indexOffset, indexCount: indexCount, topology: .triangle, materialIndex: part.materialIndex, bounds: .init(min: bounds.min, max: bounds.max))
+                let llPart = LowLevelMesh.Part(indexOffset: indexOffset * MemoryLayout<UInt32>.stride, indexCount: indexCount, topology: .triangle, materialIndex: part.materialIndex, bounds: .init(min: bounds.min, max: bounds.max))
                 usdzLLMesh.parts.append(llPart)
 
-                NSLog("%@", "appending \(positions.count) vertices at \(totalVertexCount), \(indexCount) indices at \(indexOffset)")
+                NSLog("%@", "appending \(positions.count) vertices at \(totalVertexCount), \(indexCount) indices at \(indexOffset), materialIndex = \(part.materialIndex)")
 
                 let vertexOffset = totalVertexCount
                 defer {totalVertexCount += positions.count}

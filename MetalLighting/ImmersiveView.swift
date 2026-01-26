@@ -73,14 +73,11 @@ struct ImmersiveView: View {
                     return usdzLLEntity
                 }())
                 await root.addChild({
-                    let usdzEntity = try! await ModelEntity(named: "CenterStage")
+                    let usdzEntity = try! await ModelEntity(named: "CenterStage 2")
                     let llImporter = try! USDZLowLevelMeshImporter(usdz: usdzEntity)
-                    let usdzLLEntity = try! llImporter.modelEntity()
-                    usdzLLEntity.position = [0, 0, 0]
-                    usdzLLEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
-                    metalMap.llMeshes.append(llImporter.mesh)
-                    usdzLLEntity.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 1))
-                    return usdzLLEntity
+                    let empty = ModelEntity(mesh: try! .generate(from: []), materials: llImporter.materials)
+                    empty.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
+                    return empty // metal only
                 }())
                 await root.addChild({
                     let usdzEntity = try! await ModelEntity(named: "Pillars")

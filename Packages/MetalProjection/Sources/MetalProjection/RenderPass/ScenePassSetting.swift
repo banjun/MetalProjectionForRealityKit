@@ -15,6 +15,7 @@ class ScenePassSetting {
     private var materialTextureCache: [Entity.ID: MTLTexture] = [:]
     let gNormalTexture: any MTLTexture
     let gViewPosTexture: any MTLTexture
+    let gEmissiveTexture: any MTLTexture
 
     convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat = .depth16Unorm, viewCount: Int) {
 #if DEBUG
@@ -33,6 +34,7 @@ class ScenePassSetting {
         // add g-buffers
         self.gNormalTexture = RenderPassEncoderSettings.makeTexture(device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rg16Snorm, viewCount: outTexture.arrayLength)
         self.gViewPosTexture = RenderPassEncoderSettings.makeTexture(device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba16Float, viewCount: outTexture.arrayLength)
+        self.gEmissiveTexture = RenderPassEncoderSettings.makeTexture(device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba16Float, viewCount: outTexture.arrayLength)
         descriptor.colorAttachments[1].texture = gNormalTexture
         descriptor.colorAttachments[1].loadAction = .clear
         descriptor.colorAttachments[1].storeAction = .store
@@ -41,6 +43,10 @@ class ScenePassSetting {
         descriptor.colorAttachments[2].loadAction = .clear
         descriptor.colorAttachments[2].storeAction = .store
         descriptor.colorAttachments[2].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
+        descriptor.colorAttachments[3].texture = gEmissiveTexture
+        descriptor.colorAttachments[3].loadAction = .clear
+        descriptor.colorAttachments[3].storeAction = .store
+        descriptor.colorAttachments[3].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
 
         self.outTexture = outTexture
         self.depthTexture = depthTexture
@@ -53,7 +59,7 @@ class ScenePassSetting {
     }
 
     @MainActor func createState() {
-        state = RenderPassEncoderSettings.makeRenderPipelineState(device: device, vertexFunction: "render_vertex", fragmentFunction: "render_fragment", llMeshes: llMeshes, pixelFormats: [outTexture.pixelFormat, gNormalTexture.pixelFormat, gViewPosTexture.pixelFormat], depthPixelFormat: depthTexture.pixelFormat)
+        state = RenderPassEncoderSettings.makeRenderPipelineState(device: device, vertexFunction: "render_vertex", fragmentFunction: "render_fragment", llMeshes: llMeshes, pixelFormats: [outTexture.pixelFormat, gNormalTexture.pixelFormat, gViewPosTexture.pixelFormat, gEmissiveTexture.pixelFormat], depthPixelFormat: depthTexture.pixelFormat)
     }
 
     @MainActor func encode(in commandBuffer: any MTLCommandBuffer, cameraTransformAndProjections: [(transform: simd_float4x4, projection: simd_float4x4)], entities: [Entity]) {
@@ -110,7 +116,19 @@ class ScenePassSetting {
                 vertexUniforms[i].cameraFromModelTransform = vertexUniforms[i].cameraFromWorldTransform * worldFromModelTransform
             }
             encoder.setVertexBytes(&vertexUniforms, length: MemoryLayout<VertexUniforms>.stride * vertexUniforms.count, index: 1)
-            encoder.drawIndexedPrimitives(type: .triangle, indexCount: llMesh.parts.reduce(into: 0) {$0 += $1.indexCount}, indexType: .uint32, indexBuffer: llMesh.readIndices(using: commandBuffer), indexBufferOffset: 0, instanceCount: viewCount)
+
+            let indexBuffer = llMesh.readIndices(using: commandBuffer)
+            for part in llMesh.parts {
+                let m = part.materialIndex < materials.count ? materials[part.materialIndex] : nil
+                let pbr = m as? PhysicallyBasedMaterial
+                let emissiveColor: simd_float4 = if let pbr, let cs = pbr.emissiveColor.color.cgColor.components, cs.count == 4 {
+                    .init(Float(cs[0]) * pbr.emissiveIntensity, Float(cs[1]) * pbr.emissiveIntensity, Float(cs[2]) * pbr.emissiveIntensity, Float(cs[3]))
+                } else {.zero}
+                var material: MetalProjectionBridgingHeader.Material = .init(emissiveColor: emissiveColor)
+
+                encoder.setFragmentBytes(&material, length: MemoryLayout.stride(ofValue: material), index: 3)
+                encoder.drawIndexedPrimitives(type: .triangle, indexCount: part.indexCount, indexType: .uint32, indexBuffer: indexBuffer, indexBufferOffset: part.indexOffset, instanceCount: viewCount)
+            }
         }
     }
 }

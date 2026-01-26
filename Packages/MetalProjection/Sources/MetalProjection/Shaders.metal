@@ -17,10 +17,18 @@ struct VertexOut {
     half4 viewPos;
 };
 struct FragmentOut {
-    float4 color [[color(0)]]; // array, indexed by [[render_target_array_index]]
+    half4 color [[color(0)]]; // array, indexed by [[render_target_array_index]]
     half2 normal [[color(1)]];
     half4 viewPos [[color(2)]];
+    half4 emissive [[color(3)]];
 };
+
+constexpr auto linearSampler = sampler(filter::linear,
+                                       mip_filter::linear,
+                                       address::clamp_to_edge);
+constexpr auto nearestSampler = sampler(filter::nearest,
+                                        mip_filter::nearest,
+                                        address::clamp_to_edge);
 
 [[vertex]]
 VertexOut render_vertex(VertexIn in [[stage_in]],
@@ -32,30 +40,25 @@ VertexOut render_vertex(VertexIn in [[stage_in]],
     auto pView4 = uniform.cameraFromWorldTransform * pWorld4;
     auto pClip4 = uniform.projectionFromCameraTransform * pView4;
 
-    VertexOut out;
-    out.position = pClip4;
-    out.uv = in.uv;
-    out.normal = half2(normalize((uniform.cameraFromModelTransform * float4(in.normal, 0)).xyz).xy); // TODO: use NormalMatrix as normal is inverse-transpose
-    out.viewPos = half4(pView4);
-    out.vid = vid;
-    //    out.v.position = in.position;
-    //    out.v.uv = in.uv;
-    //    out.v.normal = in.normal;
-    //    out.v.tangent = in.tangent;
-    //    out.v.bitangent = in.bitangent;
-    return out;
+    return VertexOut {
+        .position = pClip4,
+        .uv = in.uv,
+        .normal = half2(normalize((uniform.cameraFromModelTransform * float4(in.normal, 0)).xyz).xy), // TODO: use NormalMatrix as normal is inverse-transpos
+        .viewPos = half4(pView4),
+        .vid = vid,
+        //    out.v.position = in.position;
+        //    out.v.uv = in.uv;
+        //    out.v.normal = in.normal;
+        //    out.v.tangent = in.tangent;
+        //    out.v.bitangent = in.bitangent;
+    };
 }
-
-constexpr auto linearSampler = sampler(filter::linear,
-                                       mip_filter::linear,
-                                       address::clamp_to_edge);
-constexpr auto nearestSampler = sampler(filter::nearest,
-                                        mip_filter::nearest,
-                                        address::clamp_to_edge);
 
 [[fragment]]
 FragmentOut render_fragment(VertexOut in [[stage_in]],
-                            texture2d<float> baseColorTexture [[texture(0)]],
+                            texture2d<half> baseColorTexture [[texture(0)]],
+                            //texture2d<half> emissiveColorTexture [[texture(1)]],
+                            constant Material &material [[buffer(3)]],
                             const device FragmentUniforms &uniforms [[buffer(2)]]) {
     // auto textureSize = uniforms.textureSize;
     auto uv = in.uv;
@@ -63,8 +66,9 @@ FragmentOut render_fragment(VertexOut in [[stage_in]],
     FragmentOut out;
     // TODO
     out.color = baseColor;
-    out.normal =in.normal;
+    out.normal = in.normal;
     out.viewPos = in.viewPos;
+    out.emissive = half4(material.emissiveColor);
     return out;
 }
 
@@ -171,6 +175,7 @@ struct VolumeLightFragment {
     float lightAngleCos;
     float3 posInModel; // model = light
     float3 cameraInModel;
+    float3 cameraInWorld;
 };
 
 [[vertex]]
@@ -191,8 +196,8 @@ VolumeLightFragment volume_light_vertex(VolumeLightVertex in [[stage_in]],
     auto pClip4 = uniform.projectionFromCameraTransform * pView4;
 
     auto lightPosInWorld4 = light.worldFromModelTransform * float4(0, 0, 0, 1);
-    auto cameraInModel4 = light.modelFromWorldTransform * uniform.worldFromCameraTransform * float4(0, 0, 0, 1);
-
+    auto cameraInWorld4 = uniform.worldFromCameraTransform * float4(0, 0, 0, 1);
+    auto cameraInModel4 = light.modelFromWorldTransform * cameraInWorld4;
     VolumeLightFragment out;
     out.position = pClip4;
     out.vid = vid;
@@ -202,6 +207,7 @@ VolumeLightFragment volume_light_vertex(VolumeLightVertex in [[stage_in]],
     out.lightDirInWorld = light.direction;
     out.lightAngleCos = light.angleCos;
     out.posInModel = in.position;
+    out.cameraInWorld = cameraInWorld4.xyz;
     out.cameraInModel = cameraInModel4.xyz;
     return out;
 }
@@ -212,37 +218,46 @@ FragmentOut volume_light_fragment(VolumeLightFragment in [[stage_in]],
     // auto lightDirInModel = float3(0, -1, 0);
     // auto cameraToLightCos = dot(lightDirInModel, normalize(in.cameraInModel));
     auto cameraToPos = in.posInModel - in.cameraInModel;
+    auto cameraToPosWorld = in.posInWorld - in.cameraInWorld;
     auto viewDirection = normalize(float3(cameraToPos.x, 0, cameraToPos.z));
     auto lightToFragment = in.posInWorld - in.lightPosInWorld;
     auto lightToFragmentDistance = length(lightToFragment);
-    auto distanceAttenuation = (exp(-3 * lightToFragmentDistance) + 0.1 * exp(-0.1 * lightToFragmentDistance)) / 1.1;
+    auto distanceAttenuation = (exp(-1 * lightToFragmentDistance) + 0.1 * exp(-0.1 * lightToFragmentDistance)) / 1.1;
     // auto spotCos = dot(in.lightDirInWorld, normalize(lightToFragment));
     auto n = normalize(float3(in.posInModel.x, 0, in.posInModel.z));
+    auto nWorld = normalize(in.posInWorld);
     auto viewCos = dot(n, -viewDirection);
     // auto discEmission = 1 + 3 * exp(-100000 * pow(-in.posInModel.y - 0.03, 2));
     // auto rootDiscBoost = front_facing ? (-in.posInModel.y < 0.1 ? 0 : 1) : (1 + smoothstep(-0.03, -0.025, in.posInModel.y));
     //    auto viewCos = dot(n, -viewDirection);
-    auto vv = front_facing ? dot(n, normalize(-float3(cameraToPos.x, 0, cameraToPos.z))) : 0;
+    auto vv = dot(float3(in.posInModel.x, 0, in.posInModel.z), normalize(-float3(cameraToPos.x, 0, (front_facing ? 1 : 1) * cameraToPos.z)));
 
     auto cameraPitch = smoothstep(0, 1.1, abs(dot(float3(0, -1, 0), normalize(in.cameraInModel))));
-    auto posLength = exp(-20 * length(in.posInModel.xz));
+    auto posLength = smoothstep(0.4, 0.9, exp(-40 * length(in.posInModel.xz)));
 
     // NOTE: As cameraInModel might be incorrectly normalized, we can just compare xz & y
     auto cameraInModelXZLength = length(in.cameraInModel.xz);
     auto innerCone = smoothstep(-0.01, 0.01, -in.cameraInModel.y - cameraInModelXZLength);
     auto rootCut = smoothstep(0, 0.001, -in.posInModel.y - 0.003);
-    auto viewCut = smoothstep(0.4, 0.9, max(0.0, cameraPitch * posLength) + max(0.0, vv));
+    auto viewCut = smoothstep(0.4, 0.9, /*max(0.0, 0 * cameraPitch * posLength) +*/ max(0.0, vv));
+
+    auto posInModelXZ = float3(in.posInModel.x, 0, in.posInModel.z);
+    auto cameraInModelXZ = float3(in.cameraInModel.x, 0, in.cameraInModel.z);
+    auto viewAngleAttenuation = smoothstep(0.4, 0.7, pow(max(0.0, dot(-normalize(posInModelXZ), normalize(posInModelXZ - cameraInModelXZ))), 2));
 
     auto attenuation = 1
     * smoothstep(0.01, 0.7, distanceAttenuation)
     * max(innerCone, 1
           * rootCut
-          * viewCut
-          );
+          * (max(0.0, cameraPitch * posLength) + viewAngleAttenuation)
+          )
+    ;
 
-    FragmentOut out;
-    out.color = float4(in.color.xyz * in.color.w * attenuation, 1);
-    return out;
+//    return FragmentOut {.color = float4(float3(viewAngleAttenuation), 1)};
+
+    return FragmentOut {
+        .color = half4(half3(in.color.xyz * in.color.w * max(0.0, attenuation)), 1),
+    };
 }
 
 [[fragment]]
@@ -262,7 +277,7 @@ FragmentOut surface_light_fragment(FullscreenIn in [[stage_in]],
     nView.z = sqrt(nViewZZ); // restore z from rg16Snorm
 
     // NOTE: loop is faster than instancing for this shader. KPI is overdraw & texture cache miss
-    float3 outRGB = 0;
+    half3 outRGB = 0;
     for (int lid = 0; lid < uniforms[vid].lightCount; ++lid) {
         // Light vectors
         auto light = lights[lid];
@@ -288,9 +303,9 @@ FragmentOut surface_light_fragment(FullscreenIn in [[stage_in]],
         * spotAtt
         * spotCos
         ;
-        outRGB += radiance;
+        outRGB += half3(radiance);
     }
     return FragmentOut {
-        .color = float4(outRGB, 1),
+        .color = half4(outRGB, 1),
     };
 }

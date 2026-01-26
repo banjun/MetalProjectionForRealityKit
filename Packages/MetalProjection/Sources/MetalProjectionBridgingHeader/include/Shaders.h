@@ -31,6 +31,9 @@ struct Vertex {
     simd_float3 tangent; // optional?
     simd_float3 bitangent; // optional?
 };
+struct Material {
+    simd_float4 emissiveColor;
+};
 
 struct VolumeSpotLight {
     simd_float4x4 worldFromModelTransform;
