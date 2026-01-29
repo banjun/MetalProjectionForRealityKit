@@ -3,8 +3,9 @@ import Metal
 class BloomPassSetting {
     let state: MTLRenderPipelineState
     let descriptorAndOutTextures: [(MTLRenderPassDescriptor, any MTLTexture)] // for ping-pong, i.e. loop over in->0->1->0->1...and then the last tex is final output (depends on loop length)
-    let kawaseBlurOffsets: [SIMD2<Float>] = [1, 2, 4, 8, 16, 32]
-        .map {$0 / 1024 / 4 / .init(1, DeviceDependants.aspectRatio)}
+    let kawaseBlurOffsets: [SIMD2<Float>] = (0..<4)
+        .map {40 * pow(1.5, Float($0))}
+        .map {$0 / 1024 / 4 / .init(DeviceDependants.aspectRatio, 1)}
 
     convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, viewCount: Int) {
         self.init(device: device,

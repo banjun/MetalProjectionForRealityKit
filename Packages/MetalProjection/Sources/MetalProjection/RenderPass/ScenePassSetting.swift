@@ -121,10 +121,10 @@ class ScenePassSetting {
             for part in llMesh.parts {
                 let m = part.materialIndex < materials.count ? materials[part.materialIndex] : nil
                 let pbr = m as? PhysicallyBasedMaterial
-                let emissiveColor: simd_float4 = if let pbr, let cs = pbr.emissiveColor.color.cgColor.components, cs.count == 4 {
-                    .init(Float(cs[0]) * pbr.emissiveIntensity, Float(cs[1]) * pbr.emissiveIntensity, Float(cs[2]) * pbr.emissiveIntensity, Float(cs[3]))
+                let emissiveColor: simd_float3 = if let pbr, let cs = pbr.emissiveColor.color.cgColor.components, cs.count >= 3 {
+                    .init(Float(cs[0]), Float(cs[1]), Float(cs[2]))
                 } else {.zero}
-                var material: MetalProjectionBridgingHeader.Material = .init(emissiveColor: emissiveColor)
+                var material: MetalProjectionBridgingHeader.Material = .init(emissiveColor: emissiveColor, emissiveIntensity: 4) // or use pbr.emissiveIntensity
 
                 encoder.setFragmentBytes(&material, length: MemoryLayout.stride(ofValue: material), index: 3)
                 encoder.drawIndexedPrimitives(type: .triangle, indexCount: part.indexCount, indexType: .uint32, indexBuffer: indexBuffer, indexBufferOffset: part.indexOffset, instanceCount: viewCount)

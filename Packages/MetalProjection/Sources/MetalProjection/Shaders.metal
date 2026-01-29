@@ -68,7 +68,7 @@ FragmentOut render_fragment(VertexOut in [[stage_in]],
     out.color = baseColor;
     out.normal = in.normal;
     out.viewPos = in.viewPos;
-    out.emissive = half4(material.emissiveColor);
+    out.emissive = half4(half3(material.emissiveColor * material.emissiveIntensity), 1);
     return out;
 }
 
@@ -115,13 +115,28 @@ float4 bright_fragment(FullscreenIn in [[stage_in]],
 float4 bloom_fragment(FullscreenIn in [[stage_in]],
                       texture2d_array<float> bright [[texture(0)]],
                       const device float2 &kawase_offset [[buffer(0)]]) {
-    auto c = float3(0.0);
-    auto weight = 1.0 / 4.0;
-    auto offset = kawase_offset;
-    c += bright.sample(linearSampler, in.uv + float2(-offset.x, -offset.y), in.iid).rgb * weight;
-    c += bright.sample(linearSampler, in.uv + float2(-offset.x, +offset.y), in.iid).rgb * weight;
-    c += bright.sample(linearSampler, in.uv + float2(+offset.x, -offset.y), in.iid).rgb * weight;
-    c += bright.sample(linearSampler, in.uv + float2(+offset.x, +offset.y), in.iid).rgb * weight;
+    float2 o = kawase_offset;
+    float2 offsets[8] = {
+        float2( o.x,  0.0),
+        float2(-o.x,  0.0),
+        float2( 0.0,  o.y),
+        float2( 0.0, -o.y),
+        float2( o.x,  o.y),
+        float2(-o.x,  o.y),
+        float2( o.x, -o.y),
+        float2(-o.x, -o.y),
+    };
+    // kawase blur with pow
+    float p = 1.05;
+    float3 c = 0.0;
+    for (int i = 0; i < 8; ++i) {
+        c += pow(bright.sample(linearSampler, in.uv + offsets[i], in.iid).rgb, p);
+    }
+    // add center focus
+    auto centerColor = bright.sample(linearSampler, in.uv, in.iid).rgb;
+    c += pow(centerColor * 0.1, p);
+    // restore pow value
+    c *= pow(1.0 / (8.0 + 1.5), 1 / p);
     return float4(c, 1);
 }
 

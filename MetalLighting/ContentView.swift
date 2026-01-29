@@ -62,7 +62,7 @@ struct ContentView: View {
                             }
                             HStack {
                                 Text("Base Intensity = \(metalMap.lightBaseIntensity, format: .number.precision(.fractionLength(3)))")
-                                Slider(value: $metalMap.lightBaseIntensity, in: 1...10)
+                                Slider(value: $metalMap.lightBaseIntensity, in: 0.1...10)
                             }
                         }
                     }

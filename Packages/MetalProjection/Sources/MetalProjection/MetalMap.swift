@@ -204,12 +204,12 @@ public final class MetalMap {
 
         scenePass.encode(in: commandBuffer, cameraTransformAndProjections: cameraTransformAndProjections, entities: entities)
         let bloomOut: (any MTLTexture)? = isBloomEnabled ? {
-            brightPass.encode(in: commandBuffer, inTexture: scenePass.outTexture)
-            return bloomPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
+//            brightPass.encode(in: commandBuffer, inTexture: scenePass.gEmissiveTexture)
+            return bloomPass.encode(in: commandBuffer, inTexture: scenePass.gEmissiveTexture)
         }() : nil
         volumeLightPass.encode(in: commandBuffer, uniforms: uniforms, lights: lights)
         surfaceLightPass.encode(in: commandBuffer, uniforms: uniforms, lightsBuffer: volumeLightPass.lightsBuffer, lightsCount: lights.count)
-        compositePass.encode(in: commandBuffer, inTextures: [scenePass.outTexture, bloomOut, volumeLightPass.outTexture, surfaceLightPass.outTexture])
+        compositePass.encode(in: commandBuffer, inTextures: [scenePass.outTexture, scenePass.gEmissiveTexture, bloomOut, volumeLightPass.outTexture, surfaceLightPass.outTexture])
 
         if let blit = commandBuffer.makeBlitCommandEncoder() {
             defer {blit.endEncoding()}

@@ -32,7 +32,8 @@ struct Vertex {
     simd_float3 bitangent; // optional?
 };
 struct Material {
-    simd_float4 emissiveColor;
+    simd_float3 emissiveColor;
+    float emissiveIntensity;
 };
 
 struct VolumeSpotLight {
