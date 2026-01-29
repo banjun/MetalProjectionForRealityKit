@@ -23,7 +23,7 @@ enum RenderPassEncoderSettings {
         return try! device.makeRenderPipelineState(descriptor: d)
     }
 
-    @MainActor static func makeRenderPipelineState(label: String = #file, device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String, fragmentFunction: String, llMeshes: [LowLevelMesh], pixelFormats: [MTLPixelFormat], depthPixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
+    @MainActor static func makeRenderPipelineState(label: String = #file, device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String, fragmentFunction: String, llMeshes: [LowLevelMesh], pixelFormats: [MTLPixelFormat], depthPixelFormat: MTLPixelFormat) -> (MTLRenderPipelineState, MTLFunction) {
         let library = library ?? device.makeBundleDebugLibrary()!
         let llDescriptors = llMeshes.map(\.descriptor)
 
@@ -49,7 +49,7 @@ enum RenderPassEncoderSettings {
             d.colorAttachments[$0.offset].pixelFormat = $0.element
         }
         d.depthAttachmentPixelFormat = depthPixelFormat
-        return try! device.makeRenderPipelineState(descriptor: d)
+        return (try! device.makeRenderPipelineState(descriptor: d), d.fragmentFunction!)
     }
 
     static func renderPassDescriptor(texture: any MTLTexture, clearColor: MTLClearColor = .init(red: 0, green: 0, blue: 0, alpha: 0), loadAction: MTLLoadAction = .clear, storeAction: MTLStoreAction = .store, depthTexture: (any MTLTexture)? = nil, depthLoadAction: MTLLoadAction = .clear, depthStoreAction: MTLStoreAction = .store) -> MTLRenderPassDescriptor {

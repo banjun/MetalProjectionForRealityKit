@@ -56,19 +56,26 @@ VertexOut render_vertex(VertexIn in [[stage_in]],
 
 [[fragment]]
 FragmentOut render_fragment(VertexOut in [[stage_in]],
-                            texture2d<half> baseColorTexture [[texture(0)]],
-                            //texture2d<half> emissiveColorTexture [[texture(1)]],
-                            constant Material &material [[buffer(3)]],
-                            const device FragmentUniforms &uniforms [[buffer(2)]]) {
-    // auto textureSize = uniforms.textureSize;
-    auto uv = in.uv;
-    auto baseColor = baseColorTexture.sample(linearSampler, float2(uv.x, 1 - uv.y));
+                            constant FragmentUniforms &uniforms [[buffer(0)]]) {
     FragmentOut out;
+    auto uv = in.uv;
+    uv.y = 1 - uv.y;
+
+    if (uniforms.flags & HasBaseColorTexture) {
+        out.color = uniforms.baseColorTexture.sample(linearSampler, uv);
+    } else {
+        out.color = half4(uniforms.baseColor, 1);
+    }
+
+    if (uniforms.flags & HasEmissiveColorTexture) {
+        out.emissive = uniforms.emissiveColorTexture.sample(linearSampler, uv);
+    } else {
+        out.emissive = half4(uniforms.emissiveColor, 1);
+    }
+
     // TODO
-    out.color = baseColor;
     out.normal = in.normal;
     out.viewPos = in.viewPos;
-    out.emissive = half4(half3(material.emissiveColor * material.emissiveIntensity), 1);
     return out;
 }
 

@@ -50,6 +50,7 @@ struct ImmersiveView: View {
                     }))
                     metalMap.llMeshes.append(llImporter.mesh)
                     usdzLLEntity.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 1))
+                    usdzLLEntity.isEnabled = true
                     return usdzLLEntity
                 }())
                 await root.addChild({
@@ -60,6 +61,7 @@ struct ImmersiveView: View {
                     usdzLLEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
                     metalMap.llMeshes.append(llImporter.mesh)
                     usdzLLEntity.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 1))
+                    usdzLLEntity.isEnabled = true
                     return usdzLLEntity
                 }())
                 await root.addChild({
@@ -70,6 +72,7 @@ struct ImmersiveView: View {
                     usdzLLEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
                     metalMap.llMeshes.append(llImporter.mesh)
                     usdzLLEntity.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 1))
+                    usdzLLEntity.isEnabled = true
                     return usdzLLEntity
                 }())
                 await root.addChild({
@@ -87,6 +90,7 @@ struct ImmersiveView: View {
                     usdzLLEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
                     metalMap.llMeshes.append(llImporter.mesh)
                     usdzLLEntity.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 1))
+                    usdzLLEntity.isEnabled = true
                     return usdzLLEntity
                 }())
                 defer {MetalMapSystem.registerSystem()}

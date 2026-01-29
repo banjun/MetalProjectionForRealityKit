@@ -19,9 +19,28 @@ struct VertexUniforms {
     simd_float4x4 projectionFromCameraTransform;
     simd_float4x4 cameraFromProjectionTransform;
 };
+#ifdef __METAL_VERSION__
+#define NS_OPTIONS(_type, _name) enum _name : _type
+#define ArgID(arg_id) [[id(arg_id)]]
+#define Texture2DHalf(name) metal::texture2d<half> name
+#else
+#import <Foundation/Foundation.h>
+#define ArgID(arg_id)
+#define Texture2DHalf(name) int name
+#endif
+NS_OPTIONS(uint32_t, FragmentArgumentFlags) {
+    HasBaseColorTexture = 1 << 0,
+    HasEmissiveColorTexture = 1 << 1,
+    EmitsLight = 1 << 2,
+    ReceivesLight = 1 << 3,
+};
 /// MetalMap->(fragment buffer)->fragment shader
 struct FragmentUniforms {
-    simd_int2 textureSize;
+    enum FragmentArgumentFlags flags    ArgID(0);
+    simd_half3 baseColor                ArgID(1);
+    Texture2DHalf(baseColorTexture)     ArgID(2);
+    simd_half3 emissiveColor            ArgID(3);
+    Texture2DHalf(emissiveColorTexture) ArgID(4);
 };
 
 struct Vertex {
@@ -32,6 +51,7 @@ struct Vertex {
     simd_float3 bitangent; // optional?
 };
 struct Material {
+    simd_float3 baseColor;
     simd_float3 emissiveColor;
     float emissiveIntensity;
 };

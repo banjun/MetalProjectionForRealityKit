@@ -14,7 +14,7 @@ public struct MetalMapSystem: System {
     public func update(context: SceneUpdateContext) {
         var maps: [ObjectIdentifier: (MetalMap, [Entity])] = [:]
         for e in context.entities(matching: .init(where: .has(Component.self)), updatingSystemWhen: .rendering) {
-            guard let map = e.components[Component.self]!.map else { return }
+            guard e.isEnabledInHierarchy, let map = e.components[Component.self]!.map else { continue }
             maps[ObjectIdentifier(map), default: (map, [])].1.append(e)
         }
         for (map, entities) in maps.values {
