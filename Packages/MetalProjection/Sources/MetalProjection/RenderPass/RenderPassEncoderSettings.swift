@@ -2,13 +2,15 @@ import Metal
 import RealityKit
 
 enum RenderPassEncoderSettings {
-    static func makeTexture(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, usage: MTLTextureUsage = [.renderTarget, .shaderRead], viewCount: Int) -> any MTLTexture {
+    static func makeTexture(_ label: String? = nil, device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, usage: MTLTextureUsage = [.renderTarget, .shaderRead], viewCount: Int) -> any MTLTexture {
         let d = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: pixelFormat, width: width, height: height, mipmapped: false)
         d.usage = usage
         d.storageMode = .private // for store for the next pass. (.memoryless cannot be stored)
         d.textureType = .type2DArray // for left/right
         d.arrayLength = viewCount
-        return device.makeTexture(descriptor: d)!
+        let texture = device.makeTexture(descriptor: d)!
+        texture.label = label
+        return texture
     }
 
     static func makeRenderPipelineState(label: String = #file, device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String = "fullscreen_vertex", fragmentFunction: String, pixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
@@ -23,9 +25,8 @@ enum RenderPassEncoderSettings {
         return try! device.makeRenderPipelineState(descriptor: d)
     }
 
-    @MainActor static func makeRenderPipelineState(label: String = #file, device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String, fragmentFunction: String, llMeshes: [LowLevelMesh], pixelFormats: [MTLPixelFormat], depthPixelFormat: MTLPixelFormat) -> (MTLRenderPipelineState, MTLFunction) {
+    nonisolated static func makeRenderPipelineState(label: String = #file, device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String, fragmentFunction: String, llDescriptor: LowLevelMesh.Descriptor, pixelFormats: [MTLPixelFormat], depthPixelFormat: MTLPixelFormat) -> (MTLRenderPipelineState, MTLFunction) {
         let library = library ?? device.makeBundleDebugLibrary()!
-        let llDescriptors = llMeshes.map(\.descriptor)
 
         let d = MTLRenderPipelineDescriptor()
         d.label = label
@@ -33,16 +34,14 @@ enum RenderPassEncoderSettings {
         d.rasterSampleCount = 1
         d.vertexFunction = library.makeFunction(name: vertexFunction)!
         d.vertexDescriptor = .init()
-        for llDescriptor in llDescriptors {
-            llDescriptor.vertexLayouts.enumerated().forEach { i, l in
-                d.vertexDescriptor!.layouts[i]!.stride = l.bufferStride
-            }
-            let vertexAttributes: [LowLevelMesh.Attribute] = llDescriptor.vertexAttributes
-            vertexAttributes.enumerated().forEach { i, a in
-                d.vertexDescriptor!.attributes[i]!.format = a.format
-                d.vertexDescriptor!.attributes[i]!.offset = a.offset
-                d.vertexDescriptor!.attributes[i]!.bufferIndex = a.layoutIndex
-            }
+        llDescriptor.vertexLayouts.enumerated().forEach { i, l in
+            d.vertexDescriptor!.layouts[i]!.stride = l.bufferStride
+        }
+        let vertexAttributes: [LowLevelMesh.Attribute] = llDescriptor.vertexAttributes
+        vertexAttributes.enumerated().forEach { i, a in
+            d.vertexDescriptor!.attributes[i]!.format = a.format
+            d.vertexDescriptor!.attributes[i]!.offset = a.offset
+            d.vertexDescriptor!.attributes[i]!.bufferIndex = a.layoutIndex
         }
         d.fragmentFunction = library.makeFunction(name: fragmentFunction)!
         pixelFormats.enumerated().forEach {

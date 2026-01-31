@@ -5,25 +5,73 @@ import Metal
 public struct USDZLowLevelMeshImporter {
     public var mesh: LowLevelMesh
     public var materials: [any RealityKit.Material]
+    // just for accumulation for loading hierarchy
+    private var verticesCount: Int
+    private var indicesCount: Int
 
     @MainActor public func modelEntity() throws -> ModelEntity {
         ModelEntity(mesh: try MeshResource(from: mesh), materials: materials)
     }
+    /// Metal-only rendering
+    @MainActor public func emptyModelEntity() throws -> ModelEntity {
+        ModelEntity(mesh: try! .generate(from: []), materials: materials)
+    }
 
-    @MainActor public init(usdz: ModelEntity, descriptor: LowLevelMesh.Descriptor = Vertex.descriptor) throws {
-        let model = usdz.model!
+    enum ImportError: Error {
+        case modelEntityNotFound
+    }
+
+    public init(mesh: LowLevelMesh, materials: [any RealityKit.Material], verticesCount: Int, indicesCount: Int) {
+        self.mesh = mesh
+        self.materials = materials
+        self.verticesCount = verticesCount
+        self.indicesCount = indicesCount
+    }
+
+    @MainActor public init(entityNamed name: String, in bundle: Bundle? = nil, descriptor: LowLevelMesh.Descriptor = Vertex.descriptor) async throws {
+        try self.init(rootEntity: try await Entity(named: name, in: bundle), descriptor: descriptor)
+    }
+    @MainActor public init(rootEntity root: Entity, descriptor: LowLevelMesh.Descriptor = Vertex.descriptor) throws {
+        var mesh: LowLevelMesh?
+        var materials: [any RealityKit.Material] = []
+        var verticesCount: Int = 0
+        var indicesCount: Int = 0
+        func recursive(on entity: Entity) throws {
+            if case let me as ModelEntity = entity {
+                let ll = try Self.init(model: me, meshAccumulated: mesh, materialsAccumulated: materials, verticesCountAccumulated: verticesCount, indicesCountAccumulated: indicesCount, rootFromModelTransform: root.convert(transform: .identity, from: me), descriptor: descriptor)
+                mesh = ll.mesh
+                materials = ll.materials
+                verticesCount = ll.verticesCount
+                indicesCount = ll.indicesCount
+            }
+            try entity.children.forEach(recursive(on:))
+        }
+        try recursive(on: root)
+        if let mesh {
+            self.init(mesh: mesh, materials: materials, verticesCount: verticesCount, indicesCount: indicesCount)
+        } else {
+            throw ImportError.modelEntityNotFound
+        }
+    }
+    /// init from USDZ, typically loaded with ModelEntity(named: "name"). USDZ should be flattened. typically has many parts with instances, materials are indexed by materialIndex
+    @MainActor public init(usdz: ModelEntity) throws {
+        try self.init(model: usdz)
+    }
+    /// init from USDZ, or, hierarchical ModelEntities. For accumulation, mesh and materials are parameterized, and rootFromModelTransform for converting hierarycial position.
+    @MainActor public init(model: ModelEntity, meshAccumulated: LowLevelMesh? = nil, materialsAccumulated: [any RealityKit.Material] = [], verticesCountAccumulated: Int = 0, indicesCountAccumulated: Int = 0, rootFromModelTransform: Transform = .identity, descriptor: LowLevelMesh.Descriptor = Vertex.descriptor) throws {
+        let model = model.model!
         let meshModels = model.mesh.contents.models
         let meshInstances = model.mesh.contents.instances
-        let usdzLLMesh = try LowLevelMesh(descriptor: descriptor)
+        let usdzLLMesh = if let meshAccumulated {meshAccumulated} else {try LowLevelMesh(descriptor: descriptor)}
         self.mesh = usdzLLMesh
-        self.materials = model.materials
-        NSLog("%@", "instances = \(meshInstances.map {($0.id, $0.model, $0.transform)})")
+        self.materials = materialsAccumulated + model.materials
+        NSLog("%@", "instances = \(meshInstances.map {($0.id, $0.model, $0.transform)}), rootFromModelTransform = \(rootFromModelTransform)")
 
-        var totalVertexCount = 0
-        var totalIndexCount = 0
+        var totalVertexCount = verticesCountAccumulated
+        var totalIndexCount = indicesCountAccumulated
         for model in meshModels {
             let instance = meshInstances.first {$0.model == model.id}
-            let transform = instance.map {$0.transform} ?? simd_float4x4(diagonal: [1,1,1,1])
+            let transform = rootFromModelTransform.matrix * (instance.map {$0.transform} ?? simd_float4x4(diagonal: [1,1,1,1]))
             for part in model.parts {
                 guard let triangleIndices = part.triangleIndices else { continue }
                 let indexOffset = totalIndexCount
@@ -41,7 +89,7 @@ public struct USDZLowLevelMeshImporter {
                     $0.max.y = max($0.max.y, $1.y)
                     $0.max.z = max($0.max.z, $1.z)
                 }
-                let llPart = LowLevelMesh.Part(indexOffset: indexOffset * MemoryLayout<UInt32>.stride, indexCount: indexCount, topology: .triangle, materialIndex: part.materialIndex, bounds: .init(min: bounds.min, max: bounds.max))
+                let llPart = LowLevelMesh.Part(indexOffset: indexOffset * MemoryLayout<UInt32>.stride, indexCount: indexCount, topology: .triangle, materialIndex: materialsAccumulated.count + part.materialIndex, bounds: .init(min: bounds.min, max: bounds.max))
                 usdzLLMesh.parts.append(llPart)
 
                 NSLog("%@", "appending \(positions.count) vertices at \(totalVertexCount), \(indexCount) indices at \(indexOffset), materialIndex = \(part.materialIndex)")
@@ -75,6 +123,8 @@ public struct USDZLowLevelMeshImporter {
                 }
             }
         }
+        self.verticesCount = totalVertexCount
+        self.indicesCount = totalIndexCount
     }
 
     public struct Vertex {

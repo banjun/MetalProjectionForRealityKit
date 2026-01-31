@@ -2,35 +2,12 @@ import Metal
 import RealityKit
 import MetalProjectionBridgingHeader
 
-import UIKit
-extension SIMD3<Float16> {
-    init?(_ color: UIColor) {
-        guard let cs = color.cgColor.components, cs.count >= 3 else { return nil }
-        self.init(Float16(cs[0]), Float16(cs[1]), Float16(cs[2]))
-    }
-}
-extension SIMD3<Float> {
-    init?(_ color: UIColor) {
-        guard let cs = color.cgColor.components, cs.count >= 3 else { return nil }
-        self.init(Float(cs[0]), Float(cs[1]), Float(cs[2]))
-    }
-}
-extension SIMD4<Float16> {
-    init?(_ color: UIColor) {
-        guard let cs = color.cgColor.components, cs.count >= 4 else { return nil }
-        self.init(Float16(cs[0]), Float16(cs[1]), Float16(cs[2]), Float16(cs[3]))
-    }
-}
-
 class ScenePassSetting {
     private let device: any MTLDevice
-    private(set) var state: MTLRenderPipelineState?
-    private var fragmentArgEncoder: (any MTLArgumentEncoder)?
+    private let state: MTLRenderPipelineState
+    private let fragmentArgEncoder: (any MTLArgumentEncoder)
     private var fragmentArgBuffer: (any MTLBuffer)?
     let descriptor: MTLRenderPassDescriptor
-    @MainActor var llMeshes: [LowLevelMesh] = [] {
-        didSet {createState()} // NOTE: might be redundant. use ECS
-    }
     let outTexture: any MTLTexture
     let depthTexture: any MTLTexture
     let depthStencilState: MTLDepthStencilState
@@ -39,28 +16,34 @@ class ScenePassSetting {
     let gViewPosTexture: any MTLTexture
     let gEmissiveTexture: any MTLTexture
 
-    convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat = .depth16Unorm, viewCount: Int) {
+    convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat = .depth16Unorm, viewCount: Int, llDescriptor: LowLevelMesh.Descriptor = USDZLowLevelMeshImporter.Vertex.descriptor) {
 #if DEBUG
         let usage: MTLTextureUsage = [.renderTarget, .shaderRead] // .shaderRead is just for debug. not needed for production
 #else
         let usage: MTLTextureUsage = [.renderTarget]
 #endif
         self.init(device: device,
-                  outTexture: RenderPassEncoderSettings.makeTexture(device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount),
-                  depthTexture: RenderPassEncoderSettings.makeTexture(device: device, width: width, height: height, pixelFormat: depthPixelFormat, usage: usage, viewCount: viewCount))
-        self.outTexture.label = "Albedo"
+                  outTexture: RenderPassEncoderSettings.makeTexture("Albedo", device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount),
+                  depthTexture: RenderPassEncoderSettings.makeTexture("Depth", device: device, width: width, height: height, pixelFormat: depthPixelFormat, usage: usage, viewCount: viewCount),
+                  llDescriptor: llDescriptor)
     }
-    init(device: any MTLDevice, outTexture: any MTLTexture, depthTexture: any MTLTexture) {
+    init(device: any MTLDevice, outTexture: any MTLTexture, depthTexture: any MTLTexture, llDescriptor: LowLevelMesh.Descriptor) {
         self.device = device
-        descriptor = RenderPassEncoderSettings.renderPassDescriptor(texture: outTexture, depthTexture: depthTexture)
+        self.outTexture = outTexture
+        self.depthTexture = depthTexture
+        depthStencilState = device.makeDepthStencilState(descriptor: {
+            let d = MTLDepthStencilDescriptor()
+            d.isDepthWriteEnabled = true
+            d.depthCompareFunction = .greaterEqual
+            return d
+        }())!
 
-        // add g-buffers
-        self.gNormalTexture = RenderPassEncoderSettings.makeTexture(device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rg16Snorm, viewCount: outTexture.arrayLength)
-        self.gNormalTexture.label = "Normal"
-        self.gViewPosTexture = RenderPassEncoderSettings.makeTexture(device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba16Float, viewCount: outTexture.arrayLength)
-        self.gViewPosTexture.label = "ViewPos"
-        self.gEmissiveTexture = RenderPassEncoderSettings.makeTexture(device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba16Float, viewCount: outTexture.arrayLength)
-        self.gEmissiveTexture.label = "Emissive"
+        // add g-buffer textures
+        self.gNormalTexture = RenderPassEncoderSettings.makeTexture("Normal", device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rg16Snorm, viewCount: outTexture.arrayLength)
+        self.gViewPosTexture = RenderPassEncoderSettings.makeTexture("ViewPos", device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba16Float, viewCount: outTexture.arrayLength)
+        self.gEmissiveTexture = RenderPassEncoderSettings.makeTexture("Emissive", device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba16Float, viewCount: outTexture.arrayLength)
+        // add g-buffer settings
+        descriptor = RenderPassEncoderSettings.renderPassDescriptor(texture: outTexture, depthTexture: depthTexture)
         descriptor.colorAttachments[1].texture = gNormalTexture
         descriptor.colorAttachments[1].loadAction = .clear
         descriptor.colorAttachments[1].storeAction = .store
@@ -74,27 +57,19 @@ class ScenePassSetting {
         descriptor.colorAttachments[3].storeAction = .store
         descriptor.colorAttachments[3].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
 
-        self.outTexture = outTexture
-        self.depthTexture = depthTexture
-        depthStencilState = device.makeDepthStencilState(descriptor: {
-            let d = MTLDepthStencilDescriptor()
-            d.isDepthWriteEnabled = true
-            d.depthCompareFunction = .greaterEqual
-            return d
-        }())!
-    }
-
-    @MainActor func createState() {
-        let (state, fragmentFunction) = RenderPassEncoderSettings.makeRenderPipelineState(device: device, vertexFunction: "render_vertex", fragmentFunction: "render_fragment", llMeshes: llMeshes, pixelFormats: [outTexture.pixelFormat, gNormalTexture.pixelFormat, gViewPosTexture.pixelFormat, gEmissiveTexture.pixelFormat], depthPixelFormat: depthTexture.pixelFormat)
+        let (state, fragmentFunction) = RenderPassEncoderSettings.makeRenderPipelineState(device: device, vertexFunction: "gbuffer_vertex", fragmentFunction: "gbuffer_fragment", llDescriptor: llDescriptor, pixelFormats: [outTexture.pixelFormat, gNormalTexture.pixelFormat, gViewPosTexture.pixelFormat, gEmissiveTexture.pixelFormat], depthPixelFormat: depthTexture.pixelFormat)
         self.state = state
         fragmentArgEncoder = fragmentFunction.makeArgumentEncoder(bufferIndex: 0)
     }
 
     @MainActor func encode(in commandBuffer: any MTLCommandBuffer, cameraTransformAndProjections: [(transform: simd_float4x4, projection: simd_float4x4)], entities: [Entity]) {
-        guard let state, let fragmentArgEncoder, let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
+        guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
         encoder.label = String(describing: type(of: self))
         defer {encoder.endEncoding()}
         encoder.setRenderPipelineState(state)
+        encoder.setDepthStencilState(depthStencilState)
+        encoder.setCullMode(.back) // just for performance, requires front facing = ccw (below)
+        encoder.setFrontFacing(.counterClockwise)
 
         let viewCount = outTexture.arrayLength
         var vertexUniforms: [VertexUniforms] = cameraTransformAndProjections.map {
@@ -174,7 +149,7 @@ class ScenePassSetting {
                     //                        textureAndIndexes.append((tex, 4))
                     //                    }
                 default:
-                    uniforms = .init(flags: [], baseColor: .init(UIColor.magenta)!, baseColorTexture: 0, emissiveColor: .init(UIColor.magenta)!, emissiveColorTexture: 0)
+                    uniforms = .init(flags: [], baseColor: .init(.magenta)!, baseColorTexture: 0, emissiveColor: .init(.magenta)!, emissiveColorTexture: 0)
                 }
                 fragmentArgBuffer.contents().advanced(by: offset).copyMemory(from: &uniforms, byteCount: fragmentArgEncoder.encodedLength)
                 for (tex, index) in textureAndIndexes {
@@ -186,10 +161,6 @@ class ScenePassSetting {
         if !usedTextures.isEmpty {
             encoder.useResources(usedTextures, usage: .read, stages: .fragment)
         }
-
-        encoder.setDepthStencilState(depthStencilState)
-        encoder.setCullMode(.back) // just for performance, requires front facing = ccw (below)
-        encoder.setFrontFacing(.counterClockwise)
 
         // draw
         fragmentArgBufferOffset = 0

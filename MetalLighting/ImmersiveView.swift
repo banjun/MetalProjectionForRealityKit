@@ -2,6 +2,7 @@ import SwiftUI
 import RealityKit
 import ShaderGraphCoder
 import MetalProjection
+import RealityKitContent
 
 struct ImmersiveView: View {
     @Environment(AppModel.self) private var appModel
@@ -28,7 +29,7 @@ struct ImmersiveView: View {
                 await root.addChild({
                     let usdzEntity = try! await ModelEntity(named: "ありす4")
                     let llImporter = try! USDZLowLevelMeshImporter(usdz: usdzEntity)
-//                    let usdzLLEntity = try! llImporter.modelEntity()
+                    //                    let usdzLLEntity = try! llImporter.modelEntity()
                     let usdzLLEntity = try! llImporter.modelEntity() // NOTE: LowLevelMesh entity cannot be compatible with ModelSortGroup ???
                     usdzLLEntity.position = [0, 1, -0.5]
                     usdzLLEntity.transform.rotation = .init(angle: .pi, axis: [0, 1, 0])
@@ -48,10 +49,17 @@ struct ImmersiveView: View {
                         t.translation += .init(translation)
                         value.entity.transform = t
                     }))
-                    metalMap.llMeshes.append(llImporter.mesh)
                     usdzLLEntity.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 1))
                     usdzLLEntity.isEnabled = true
-                    return usdzLLEntity
+                    //                    return usdzLLEntity
+
+                    let gestureOnlyEntity: Entity = try! llImporter.emptyModelEntity()
+                    gestureOnlyEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
+                    ManipulationComponent.configureEntity(gestureOnlyEntity, hoverEffect: .highlight(.default), allowedInputTypes: .indirect, collisionShapes: usdzLLEntity.components[CollisionComponent.self]!.shapes)
+                    gestureOnlyEntity.components[ManipulationComponent.self]!.releaseBehavior = .stay
+                    gestureOnlyEntity.position = usdzLLEntity.position
+                    gestureOnlyEntity.transform.rotation = usdzLLEntity.transform.rotation
+                    return gestureOnlyEntity
                 }())
                 await root.addChild({
                     let usdzEntity = try! await ModelEntity(named: "GridSphere")
@@ -59,39 +67,27 @@ struct ImmersiveView: View {
                     let usdzLLEntity = try! llImporter.modelEntity()
                     usdzLLEntity.position = [0, 1, -0.5]
                     usdzLLEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
-                    metalMap.llMeshes.append(llImporter.mesh)
                     usdzLLEntity.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 1))
                     usdzLLEntity.isEnabled = true
                     return usdzLLEntity
                 }())
                 await root.addChild({
-                    let usdzEntity = try! await ModelEntity(named: "Floor")
-                    let llImporter = try! USDZLowLevelMeshImporter(usdz: usdzEntity)
-                    let usdzLLEntity = try! llImporter.modelEntity()
-                    usdzLLEntity.position = [0, 0, 0]
-                    usdzLLEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
-                    metalMap.llMeshes.append(llImporter.mesh)
-                    usdzLLEntity.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 1))
-                    usdzLLEntity.isEnabled = true
-                    return usdzLLEntity
-                }())
-                await root.addChild({
-                    let usdzEntity = try! await ModelEntity(named: "CenterStage 2")
-                    let llImporter = try! USDZLowLevelMeshImporter(usdz: usdzEntity)
-                    let empty = ModelEntity(mesh: try! .generate(from: []), materials: llImporter.materials)
+                    let llImporter = try! await USDZLowLevelMeshImporter(entityNamed: "Floor", in: realityKitContentBundle)
+                    let empty = try! llImporter.emptyModelEntity()
                     empty.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
                     return empty // metal only
                 }())
                 await root.addChild({
-                    let usdzEntity = try! await ModelEntity(named: "Pillars")
-                    let llImporter = try! USDZLowLevelMeshImporter(usdz: usdzEntity)
-                    let usdzLLEntity = try! llImporter.modelEntity()
-                    usdzLLEntity.position = [0, 0, 0]
-                    usdzLLEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
-                    metalMap.llMeshes.append(llImporter.mesh)
-                    usdzLLEntity.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 1))
-                    usdzLLEntity.isEnabled = true
-                    return usdzLLEntity
+                    let llImporter = try! await USDZLowLevelMeshImporter(entityNamed: "CenterStage", in: realityKitContentBundle)
+                    let empty = try! llImporter.emptyModelEntity()
+                    empty.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
+                    return empty // metal only
+                }())
+                await root.addChild({
+                    let llImporter = try! await USDZLowLevelMeshImporter(entityNamed: "Pillars", in: realityKitContentBundle)
+                    let empty = try! llImporter.emptyModelEntity()
+                    empty.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
+                    return empty // metal only
                 }())
                 defer {MetalMapSystem.registerSystem()}
 
@@ -146,7 +142,8 @@ struct ImmersiveView: View {
 
                 @MainActor func screenMaterial() async -> ShaderGraphMaterial {
                     let mapValue = projectedMap()
-                    var m = try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb, opacity: .zero, applyPostProcessToneMap: false, hasPremultipliedAlpha: true))
+                    //                    var m = try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb, opacity: .zero, applyPostProcessToneMap: false, hasPremultipliedAlpha: true))
+                    var m = try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb, opacity: mapValue.a, applyPostProcessToneMap: false, hasPremultipliedAlpha: false))
                     m.faceCulling = .front
                     return m
                 }

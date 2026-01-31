@@ -10,6 +10,7 @@
 		EA00AB492EB8D4480025B081 /* ShaderGraphCoder in Frameworks */ = {isa = PBXBuildFile; productRef = EA00AB482EB8D4480025B081 /* ShaderGraphCoder */; };
 		EA20CC702EB8B4E000555555 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = EA20CC6F2EB8B4E000555555 /* RealityKitContent */; };
 		EA22AC832F01730000C5F1D2 /* MetalProjection in Frameworks */ = {isa = PBXBuildFile; productRef = EA22AC822F01730000C5F1D2 /* MetalProjection */; };
+		EA5C5BA32F2E54E00096EACA /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = EA5C5BA22F2E54E00096EACA /* RealityKitContent */; };
 		EA7F78182ED486EE00459707 /* ShaderGraphCoder in Frameworks */ = {isa = PBXBuildFile; productRef = EA7F78172ED486EE00459707 /* ShaderGraphCoder */; };
 /* End PBXBuildFile section */
 
@@ -75,6 +76,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				EA7F78182ED486EE00459707 /* ShaderGraphCoder in Frameworks */,
+				EA5C5BA32F2E54E00096EACA /* RealityKitContent in Frameworks */,
 				EA22AC832F01730000C5F1D2 /* MetalProjection in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -150,6 +152,7 @@
 			packageProductDependencies = (
 				EA7F78172ED486EE00459707 /* ShaderGraphCoder */,
 				EA22AC822F01730000C5F1D2 /* MetalProjection */,
+				EA5C5BA22F2E54E00096EACA /* RealityKitContent */,
 			);
 			productName = MetalLighting;
 			productReference = EA10E7852ED4650E00E3CCD0 /* MetalLighting.app */;
@@ -552,6 +555,10 @@
 		EA22AC822F01730000C5F1D2 /* MetalProjection */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MetalProjection;
+		};
+		EA5C5BA22F2E54E00096EACA /* RealityKitContent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RealityKitContent;
 		};
 		EA7F78172ED486EE00459707 /* ShaderGraphCoder */ = {
 			isa = XCSwiftPackageProductDependency;

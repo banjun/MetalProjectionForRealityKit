@@ -45,10 +45,6 @@ public final class MetalMap {
 
     // scene -> post effects (bright, bloom) -> composite -> llTexture -> textureResource
     private let scenePass: ScenePassSetting
-    @MainActor public var llMeshes: [LowLevelMesh] {
-        get {scenePass.llMeshes}
-        set {scenePass.llMeshes = newValue}
-    }
     private let brightPass: BrightPassSetting
     private let bloomPass: BloomPassSetting
     private let volumeLightPass: VolumeLightPassSetting
