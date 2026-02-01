@@ -31,8 +31,11 @@ struct VertexUniforms {
 NS_OPTIONS(uint32_t, FragmentArgumentFlags) {
     HasBaseColorTexture = 1 << 0,
     HasEmissiveColorTexture = 1 << 1,
-    EmitsLight = 1 << 2,
-    ReceivesLight = 1 << 3,
+    HasAOTexture = 1 << 2,
+    HasRoughnessTexture = 1 << 3,
+    HasMetalicTexture = 1 << 4,
+    EmitsLight = 1 << 10,
+    ReceivesLight = 1 << 11,
 };
 /// MetalMap->(fragment buffer)->fragment shader
 struct FragmentUniforms {
@@ -41,6 +44,8 @@ struct FragmentUniforms {
     Texture2DHalf(baseColorTexture)     ArgID(2);
     simd_half3 emissiveColor            ArgID(3);
     Texture2DHalf(emissiveColorTexture) ArgID(4);
+    simd_half3 orm                      ArgID(5);
+    Texture2DHalf(ormTexture)           ArgID(6);
 };
 
 struct Vertex {

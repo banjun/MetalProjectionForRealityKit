@@ -72,8 +72,8 @@ def Xform "Root"
         def Shader "DefaultSurfaceShader"
         {
             uniform token info:id = "UsdPreviewSurface"
-            color3f inputs:diffuseColor = (0.12984204, 0.12984613, 0.12984395) (
-                colorSpace = "srgb_texture"
+            color3f inputs:diffuseColor = (0.008106732, 0.008106732, 0.008106732) (
+                colorSpace = "lin_srgb"
             )
             float inputs:roughness = 0.75
             token outputs:surface
@@ -563,7 +563,6 @@ def Xform "Root"
             {
                 float2 ui:nodegraph:node:pos = (220, 220)
                 int ui:nodegraph:node:stackingOrder = 11
-                quatf xformOp:orient = (0.9659258, 0, 0.2588191, 0)
                 float3 xformOp:scale = (1, 1, 1)
                 float3 xformOp:translate = (0, 0, 0.77)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]

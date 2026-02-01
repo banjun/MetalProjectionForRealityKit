@@ -5,6 +5,7 @@ import MetalProjectionBridgingHeader
 class ScenePassSetting {
     private let device: any MTLDevice
     private let state: MTLRenderPipelineState
+    private let ormState: MTLComputePipelineState
     private let fragmentArgEncoder: (any MTLArgumentEncoder)
     private var fragmentArgBuffer: (any MTLBuffer)?
     let descriptor: MTLRenderPassDescriptor
@@ -12,9 +13,11 @@ class ScenePassSetting {
     let depthTexture: any MTLTexture
     let depthStencilState: MTLDepthStencilState
     private var materialTextureCache: [Entity.ID: MTLTexture] = [:]
+    private var ormTextureCache: [Entity.ID: MTLTexture] = [:]
     let gNormalTexture: any MTLTexture
     let gViewPosTexture: any MTLTexture
     let gEmissiveTexture: any MTLTexture
+    let gORMTexture: any MTLTexture // Occlusion, Roughness, Metalic
 
     convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat = .depth16Unorm, viewCount: Int, llDescriptor: LowLevelMesh.Descriptor = USDZLowLevelMeshImporter.Vertex.descriptor) {
 #if DEBUG
@@ -42,6 +45,7 @@ class ScenePassSetting {
         self.gNormalTexture = RenderPassEncoderSettings.makeTexture("Normal", device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rg16Snorm, viewCount: outTexture.arrayLength)
         self.gViewPosTexture = RenderPassEncoderSettings.makeTexture("ViewPos", device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba16Float, viewCount: outTexture.arrayLength)
         self.gEmissiveTexture = RenderPassEncoderSettings.makeTexture("Emissive", device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba16Float, viewCount: outTexture.arrayLength)
+        self.gORMTexture = RenderPassEncoderSettings.makeTexture("AO/Roughness/Metalic", device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba8Unorm, viewCount: outTexture.arrayLength)
         // add g-buffer settings
         descriptor = RenderPassEncoderSettings.renderPassDescriptor(texture: outTexture, depthTexture: depthTexture)
         descriptor.colorAttachments[1].texture = gNormalTexture
@@ -56,10 +60,16 @@ class ScenePassSetting {
         descriptor.colorAttachments[3].loadAction = .clear
         descriptor.colorAttachments[3].storeAction = .store
         descriptor.colorAttachments[3].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
+        descriptor.colorAttachments[4].texture = gORMTexture
+        descriptor.colorAttachments[4].loadAction = .clear
+        descriptor.colorAttachments[4].storeAction = .store
+        descriptor.colorAttachments[4].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
 
-        let (state, fragmentFunction) = RenderPassEncoderSettings.makeRenderPipelineState(device: device, vertexFunction: "gbuffer_vertex", fragmentFunction: "gbuffer_fragment", llDescriptor: llDescriptor, pixelFormats: [outTexture.pixelFormat, gNormalTexture.pixelFormat, gViewPosTexture.pixelFormat, gEmissiveTexture.pixelFormat], depthPixelFormat: depthTexture.pixelFormat)
+        let (state, fragmentFunction) = RenderPassEncoderSettings.makeRenderPipelineState(device: device, vertexFunction: "gbuffer_vertex", fragmentFunction: "gbuffer_fragment", llDescriptor: llDescriptor, pixelFormats: [outTexture, gNormalTexture, gViewPosTexture, gEmissiveTexture, gORMTexture].map(\.pixelFormat), depthPixelFormat: depthTexture.pixelFormat)
         self.state = state
         fragmentArgEncoder = fragmentFunction.makeArgumentEncoder(bufferIndex: 0)
+
+        ormState = RenderPassEncoderSettings.makeComputePipelineState(device: device, kernelFunction: "packORM")
     }
 
     @MainActor func encode(in commandBuffer: any MTLCommandBuffer, cameraTransformAndProjections: [(transform: simd_float4x4, projection: simd_float4x4)], entities: [Entity]) {
@@ -111,7 +121,9 @@ class ScenePassSetting {
                         baseColor: .init(unlit.color.tint) ?? .zero,
                         baseColorTexture: 0,
                         emissiveColor: .zero,
-                        emissiveColorTexture: 0)
+                        emissiveColorTexture: 0,
+                        orm: .init(1, 0, 0),
+                        ormTexture: 0)
                     if let tex = materialTextureCache[entity.id] { // maybe key should be (entity.id, materialIndex)?
                         textureAndIndexes.append((tex, 2))
                     } else if let baseColorTexture = unlit.color.texture {
@@ -128,11 +140,17 @@ class ScenePassSetting {
                             // .EmitsLight,
                             pbr.baseColor.texture != nil ? .HasBaseColorTexture : [],
                             pbr.emissiveColor.texture != nil ? .HasEmissiveColorTexture : [],
+                            pbr.ambientOcclusion.texture != nil ? .HasAOTexture : [],
+                            pbr.roughness.texture != nil ? .HasRoughnessTexture : [],
+                            pbr.metallic.texture != nil ?
+                                .HasMetalicTexture : [],
                         ],
                         baseColor: .init(pbr.baseColor.tint) ?? .zero,
                         baseColorTexture: 0,
                         emissiveColor: .init(pbr.emissiveColor.color) ?? .zero,
-                        emissiveColorTexture: 0)
+                        emissiveColorTexture: 0,
+                        orm: .init(1, Float16(pbr.roughness.scale), Float16(pbr.metallic.scale)),
+                        ormTexture: 0)
                     if let tex = materialTextureCache[entity.id] { // maybe key should be (entity.id, materialIndex)?
                         textureAndIndexes.append((tex, 2))
                     } else if let baseColorTexture = pbr.baseColor.texture {
@@ -143,13 +161,18 @@ class ScenePassSetting {
                         try! baseColorTexture.resource.copy(to: tex)
                         materialTextureCache[entity.id] = tex
                     }
+                    if let tex = ormTextureCache[entity.id] {
+                        textureAndIndexes.append((tex, 6))
+                    } else if pbr.ambientOcclusion.texture != nil || pbr.roughness.texture != nil || pbr.metallic.texture != nil {
+                        ormTextureCache[entity.id] = ormPack(commit: commandBuffer.commandQueue.makeCommandBuffer()!, ao: pbr.ambientOcclusion.texture?.resource, roughness: pbr.roughness.texture?.resource, metalic: pbr.metallic.texture?.resource)
+                    }
                     // TODO
                     //
                     //                    if let tex = materialEmissiveColorTextureCache[entity.id] { // maybe key should be (entity.id, materialIndex)?
                     //                        textureAndIndexes.append((tex, 4))
                     //                    }
                 default:
-                    uniforms = .init(flags: [], baseColor: .init(.magenta)!, baseColorTexture: 0, emissiveColor: .init(.magenta)!, emissiveColorTexture: 0)
+                    uniforms = .init(flags: [], baseColor: .init(.magenta)!, baseColorTexture: 0, emissiveColor: .init(.magenta)!, emissiveColorTexture: 0, orm: .init(1, 0, 0), ormTexture: 0)
                 }
                 fragmentArgBuffer.contents().advanced(by: offset).copyMemory(from: &uniforms, byteCount: fragmentArgEncoder.encodedLength)
                 for (tex, index) in textureAndIndexes {
@@ -183,5 +206,45 @@ class ScenePassSetting {
                 encoder.drawIndexedPrimitives(type: .triangle, indexCount: part.indexCount, indexType: .uint32, indexBuffer: indexBuffer, indexBufferOffset: part.indexOffset, instanceCount: viewCount)
             }
         }
+    }
+
+    @MainActor private func ormPack(commit commandBuffer: any MTLCommandBuffer, ao: TextureResource?, roughness: TextureResource?, metalic: TextureResource?) -> (any MTLTexture)? {
+        defer {commandBuffer.commit()}
+        let width = max(ao?.width ?? 1, roughness?.width ?? 1, metalic?.width ?? 1)
+        let height = max(ao?.height ?? 1, roughness?.height ?? 1, metalic?.height ?? 1)
+        let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .rgba8Unorm, width: width, height: height, mipmapped: true)
+        desc.storageMode = .private
+        desc.usage = [.shaderRead, .shaderWrite]
+        let ormTex = state.device.makeTexture(descriptor: desc)!
+        ormTex.label = "Packed ORM"
+        let computeEncoder = commandBuffer.makeComputeCommandEncoder()!
+        computeEncoder.setComputePipelineState(ormState)
+
+        let textures: [(any MTLTexture)?] = [ao, roughness, metalic].map { (t: TextureResource?) -> (any MTLTexture)? in
+            if let t {
+                let tex = state.device.makeTexture(descriptor: {
+                    let d = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .r8Unorm, width: t.width, height: t.height, mipmapped: false)
+                    d.usage = [.shaderRead, .shaderWrite]
+                    return d
+                }())!
+                try! t.copy(to: tex)
+                return tex
+            } else { return nil }
+        }
+        computeEncoder.setTextures(textures, range: 0..<3)
+        computeEncoder.setTexture(ormTex, index: 3)
+        var flags: [UInt32] = textures.map {$0 != nil ? 1 : 0}
+        computeEncoder.setBytes(&flags, length: MemoryLayout<Int>.stride * flags.count, index: 0)
+        let threadGroupSize = MTLSize(width: 16, height: 16, depth: 1)
+        let threadGroups = MTLSize(width: (width + threadGroupSize.width - 1) / threadGroupSize.width,
+                                   height: (height + threadGroupSize.height - 1) / threadGroupSize.height,
+                                   depth: 1)
+        computeEncoder.dispatchThreadgroups(threadGroups, threadsPerThreadgroup: threadGroupSize)
+        computeEncoder.endEncoding()
+
+        let blit = commandBuffer.makeBlitCommandEncoder()!
+        blit.generateMipmaps(for: ormTex)
+        blit.endEncoding()
+        return ormTex
     }
 }

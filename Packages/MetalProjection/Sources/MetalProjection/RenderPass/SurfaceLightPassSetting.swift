@@ -7,9 +7,10 @@ class SurfaceLightPassSetting {
     let gAlbedoTexture: any MTLTexture
     let gViewPosTexture: any MTLTexture // avoid heavy (and incorrect resulting) inverse from depth tex
     let gNormalTexture: any MTLTexture
+    let gORMTexture: any MTLTexture
     let outTexture: any MTLTexture
 
-    init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, gAlbedoTexture: any MTLTexture, gNormalTexture: any MTLTexture, gViewPosTexture: any MTLTexture) {
+    init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, gAlbedoTexture: any MTLTexture, gNormalTexture: any MTLTexture, gViewPosTexture: any MTLTexture, gORMTexture: any MTLTexture) {
         let library = device.makeBundleDebugLibrary()!
         let downsampleFactor: Int
 #if targetEnvironment(simulator)
@@ -40,19 +41,20 @@ class SurfaceLightPassSetting {
         self.gViewPosTexture = gViewPosTexture
         self.gNormalTexture = gNormalTexture
         self.outTexture = outTexture
+        self.gORMTexture = gORMTexture
     }
 
-    func encode(in commandBuffer: any MTLCommandBuffer, uniforms: Uniforms, lightsBuffer: any MTLBuffer, lightsCount: Int, imageBasedLight: (any MTLTexture)?) {
+    func encode(in commandBuffer: any MTLCommandBuffer, uniforms: Uniforms, lightsBuffer: any MTLBuffer, lightsCount: Int, imageBasedLight: (any MTLTexture)?, iblIntensityExp: Float = -30) {
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
         encoder.label = String(describing: type(of: self))
         defer {encoder.endEncoding()}
         encoder.setRenderPipelineState(state)
-        guard lightsCount > 0 else { return }
+//        guard lightsCount > 0 else { return }
 
         var viewCount = outTexture.arrayLength
         encoder.setVertexBytes(&viewCount, length: MemoryLayout.stride(ofValue: viewCount), index: 1)
 
-        let textures = [gAlbedoTexture, gViewPosTexture, gNormalTexture, imageBasedLight]
+        let textures = [gAlbedoTexture, gViewPosTexture, gNormalTexture, gORMTexture, imageBasedLight]
         encoder.setFragmentTextures(textures, range: textures.indices)
 
         var uniforms: [SurfaceLightUniforms] = [
@@ -69,6 +71,8 @@ class SurfaceLightPassSetting {
         ]
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<SurfaceLightUniforms>.stride * 2, index: 0)
         encoder.setFragmentBuffer(lightsBuffer, offset: 0, index: 1)
+        var iblIntensityExp = iblIntensityExp
+        encoder.setFragmentBytes(&iblIntensityExp, length: MemoryLayout.stride(ofValue: iblIntensityExp), index: 2)
 
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: outTexture.arrayLength)
     }

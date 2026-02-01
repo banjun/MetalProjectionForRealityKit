@@ -50,6 +50,12 @@ enum RenderPassEncoderSettings {
         d.depthAttachmentPixelFormat = depthPixelFormat
         return (try! device.makeRenderPipelineState(descriptor: d), d.fragmentFunction!)
     }
+    nonisolated static func makeComputePipelineState(label: String = #file, device: any MTLDevice, library: (any MTLLibrary)? = nil, kernelFunction: String) -> MTLComputePipelineState {
+        let library = library ?? device.makeBundleDebugLibrary()!
+
+        let kernel = library.makeFunction(name: kernelFunction)!
+        return try! device.makeComputePipelineState(function: kernel)
+    }
 
     static func renderPassDescriptor(texture: any MTLTexture, clearColor: MTLClearColor = .init(red: 0, green: 0, blue: 0, alpha: 0), loadAction: MTLLoadAction = .clear, storeAction: MTLStoreAction = .store, depthTexture: (any MTLTexture)? = nil, depthLoadAction: MTLLoadAction = .clear, depthStoreAction: MTLStoreAction = .store) -> MTLRenderPassDescriptor {
         let d = MTLRenderPassDescriptor()

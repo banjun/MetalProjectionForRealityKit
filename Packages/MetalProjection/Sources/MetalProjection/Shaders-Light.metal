@@ -101,9 +101,11 @@ half4 surface_light_fragment(FullscreenIn in [[stage_in]],
                              texture2d_array<half> gAlbedoTex [[texture(0)]],
                              texture2d_array<half> gViewPosTex [[texture(1)]],
                              texture2d_array<half> gNormalTex [[texture(2)]],
-                             texturecube<half> iblTex [[texture(3)]],
+                             texture2d_array<half> gORMTex [[texture(3)]],
+                             texturecube<half> iblTex [[texture(4)]],
                              constant SurfaceLightUniforms *uniforms [[buffer(0)]],
-                             constant VolumeSpotLight *lights [[buffer(1)]]) {
+                             constant VolumeSpotLight *lights [[buffer(1)]],
+                             constant half &iblIntensityExp [[buffer(2)]]) {
     auto vid = in.vid;
     // G-Buffer read
     auto posInView = float3(gViewPosTex.sample(linearSampler, in.uv, vid).xyz);
@@ -117,16 +119,27 @@ half4 surface_light_fragment(FullscreenIn in [[stage_in]],
     auto albedo = gAlbedoTex.sample(linearSampler, in.uv, vid).xyz;
     auto nWorld = normalize(uniforms[vid].worldFromCameraTransform * float4(float3(nView), 0)).xyz; // incorrect for normal transform?
     auto iblMipLevels = half(iblTex.get_num_mip_levels() - 1);
-    half roughness = 0.0;
-    float specLOD = roughness * iblMipLevels;
+    auto iblExponent = exp2(iblIntensityExp);
+    auto orm = gORMTex.sample(linearSampler, in.uv, vid);
+    auto ao = orm.x;
+    auto roughness = orm.y;
+    auto metalic = orm.z;
+    auto reflectance = half3(0.02);
+    half3 f0 = mix(reflectance, half3(albedo), metalic);
     float3 vdWorld = normalize((uniforms[vid].worldFromCameraTransform * float4(normalize(posInView), 0)).xyz);
     float3 rWorld = reflect(-vdWorld, nWorld);
-    half3 specColor = iblTex.sample(linearSampler, rWorld, level(specLOD)).rgb;
+    float NdotV = max(0.0f, dot(nWorld, -vdWorld));
+    half3 fresnel = f0 + (max(half3(1.0h - roughness), f0) - f0) * pow(1.0f - NdotV, 5.0f);
+    half3 kD = (1.0h - fresnel) * (1.0h - metalic);
+    float specLOD = roughness * iblMipLevels;
+    half3 specColor = iblTex.sample(linearSampler, rWorld, level(specLOD)).rgb * iblExponent;
+    half specularOcclusion = 1.0h - roughness * 0.5h;
+    half3 indirectSpecular = specColor * fresnel * specularOcclusion;
     float diffuseLOD = iblMipLevels;
-    half3 diffColor = iblTex.sample(linearSampler, float3(nWorld), level(diffuseLOD)).rgb;
+    half3 diffColor = iblTex.sample(linearSampler, float3(nWorld), level(diffuseLOD)).rgb * iblExponent;
+    half3 indirectDiffuse = diffColor * half3(albedo) * kD;
 
-    float reflectance = 0.5;
-    half3 outRGB = diffColor * albedo + specColor * reflectance;
+    half3 outRGB = (indirectDiffuse + indirectSpecular) * ao;
     // NOTE: loop is faster than instancing for this shader. KPI is overdraw & texture cache miss
     for (int lid = 0; lid < uniforms[vid].lightCount; ++lid) {
         // Light vectors
@@ -153,7 +166,9 @@ half4 surface_light_fragment(FullscreenIn in [[stage_in]],
         * spotAtt
         * spotCos
         ;
-        outRGB += half3(radiance);
+        auto directDiffuse = radiance * NdotL * (1.0f - float(metalic)) * float3(albedo);
+        auto directSpecular = float3(0); // TODO
+        outRGB += half3(directDiffuse + directSpecular);
     }
     return half4(outRGB, 1);
 }

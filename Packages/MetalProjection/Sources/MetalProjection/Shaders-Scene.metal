@@ -19,6 +19,7 @@ struct FragmentOut {
     half2 normal [[color(1)]];
     half4 viewPos [[color(2)]];
     half4 emissive [[color(3)]];
+    half4 orm [[color(4)]]; // AO, Roughness, Metalic, _
 };
 
 [[vertex]]
@@ -57,6 +58,17 @@ FragmentOut gbuffer_fragment(VertexOut in [[stage_in]],
         out.emissive = uniforms.emissiveColorTexture.sample(linearSampler, uv);
     } else {
         out.emissive = half4(uniforms.emissiveColor, 1);
+    }
+
+    out.orm = uniforms.ormTexture.sample(linearSampler, uv);
+    if (uniforms.flags & HasAOTexture) {} else {
+        out.orm.x = uniforms.orm.x;
+    }
+    if (uniforms.flags & HasRoughnessTexture) {} else {
+        out.orm.y = uniforms.orm.y;
+    }
+    if (uniforms.flags & HasMetalicTexture) {} else {
+        out.orm.z = uniforms.orm.z;
     }
 
     // TODO

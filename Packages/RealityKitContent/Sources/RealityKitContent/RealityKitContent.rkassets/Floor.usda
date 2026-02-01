@@ -29,8 +29,8 @@ def Xform "Root"
             def Shader "DefaultSurfaceShader"
             {
                 uniform token info:id = "UsdPreviewSurface"
-                color3f inputs:diffuseColor = (0, 0, 0) (
-                    colorSpace = "srgb_texture"
+                color3f inputs:diffuseColor = (0.005315167, 0.005315167, 0.005315167) (
+                    colorSpace = "lin_srgb"
                 )
                 float inputs:roughness = 0.75
                 token outputs:surface

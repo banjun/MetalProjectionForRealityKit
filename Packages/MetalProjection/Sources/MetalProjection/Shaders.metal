@@ -37,3 +37,23 @@ float4 copyDepthToColor(FullscreenIn in [[stage_in]],
     auto d = depth.sample(nearestSampler, in.uv, in.vid);
     return float4(float3(d), 1);
 }
+
+[[kernel]]
+void packORM(texture2d<half, access::sample> aoTex [[texture(0)]],
+             texture2d<half, access::sample> roughTex [[texture(1)]],
+             texture2d<half, access::sample> metalTex [[texture(2)]],
+             texture2d<half, access::write> outTex [[texture(3)]],
+             constant uint32_t *flags [[buffer(0)]],
+             uint2 gid [[thread_position_in_grid]]) {
+    if (gid.x >= outTex.get_width() || gid.y >= outTex.get_height()) return;
+
+    float2 uv = float2(gid) / float2(outTex.get_width(), outTex.get_height());
+
+    auto roughnessGamma = half(1.0 / 2.2); // from generic gray gamma 2.2?
+
+    auto out = half4(0);
+    out.r = flags[0] * aoTex.sample(linearSampler, uv).r;
+    out.g = flags[1] * pow(roughTex.sample(linearSampler, uv).r, roughnessGamma);
+    out.b = flags[2] * metalTex.sample(linearSampler, uv).r;
+    outTex.write(out, gid);
+}
