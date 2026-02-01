@@ -98,10 +98,12 @@ half4 volume_light_fragment(VolumeLightFragment in [[stage_in]],
 
 [[fragment]]
 half4 surface_light_fragment(FullscreenIn in [[stage_in]],
-                             texture2d_array<half> gViewPosTex [[texture(0)]],
-                             texture2d_array<half> gNormalTex [[texture(1)]],
-                             const device SurfaceLightUniforms *uniforms [[buffer(0)]],
-                             const device VolumeSpotLight *lights [[buffer(1)]]) {
+                             texture2d_array<half> gAlbedoTex [[texture(0)]],
+                             texture2d_array<half> gViewPosTex [[texture(1)]],
+                             texture2d_array<half> gNormalTex [[texture(2)]],
+                             texturecube<half> iblTex [[texture(3)]],
+                             constant SurfaceLightUniforms *uniforms [[buffer(0)]],
+                             constant VolumeSpotLight *lights [[buffer(1)]]) {
     auto vid = in.vid;
     // G-Buffer read
     auto posInView = float3(gViewPosTex.sample(linearSampler, in.uv, vid).xyz);
@@ -112,8 +114,20 @@ half4 surface_light_fragment(FullscreenIn in [[stage_in]],
     auto nViewZZ = max(half(0), 1 - nView.r * nView.r - nView.g * nView.g);
     nView.z = sqrt(nViewZZ); // restore z from rg16Snorm
 
+    auto albedo = gAlbedoTex.sample(linearSampler, in.uv, vid).xyz;
+    auto nWorld = normalize(uniforms[vid].worldFromCameraTransform * float4(float3(nView), 0)).xyz; // incorrect for normal transform?
+    auto iblMipLevels = half(iblTex.get_num_mip_levels() - 1);
+    half roughness = 0.0;
+    float specLOD = roughness * iblMipLevels;
+    float3 vdWorld = normalize((uniforms[vid].worldFromCameraTransform * float4(normalize(posInView), 0)).xyz);
+    float3 rWorld = reflect(-vdWorld, nWorld);
+    half3 specColor = iblTex.sample(linearSampler, rWorld, level(specLOD)).rgb;
+    float diffuseLOD = iblMipLevels;
+    half3 diffColor = iblTex.sample(linearSampler, float3(nWorld), level(diffuseLOD)).rgb;
+
+    float reflectance = 0.5;
+    half3 outRGB = diffColor * albedo + specColor * reflectance;
     // NOTE: loop is faster than instancing for this shader. KPI is overdraw & texture cache miss
-    half3 outRGB = 0;
     for (int lid = 0; lid < uniforms[vid].lightCount; ++lid) {
         // Light vectors
         auto light = lights[lid];

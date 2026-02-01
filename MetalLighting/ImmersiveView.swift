@@ -3,6 +3,7 @@ import RealityKit
 import ShaderGraphCoder
 import MetalProjection
 import RealityKitContent
+import UIKit
 
 struct ImmersiveView: View {
     @Environment(AppModel.self) private var appModel
@@ -154,6 +155,9 @@ struct ImmersiveView: View {
                     return sphere
                 }
                 await root.addChild(screenSphere(radius: 10000))
+
+                let ibl = try! await TextureResource(cubeFromEquirectangular: UIImage(named: "studio_kominka_02_4k-polyhaven-cc0-scaled512.exr")!.cgImage!, options: .init(semantic: .hdrColor))
+                try! metalMap.setImageBasedLightTexture(ibl)
             }
         }
     }

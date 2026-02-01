@@ -4,11 +4,12 @@ import MetalProjectionBridgingHeader
 class SurfaceLightPassSetting {
     let state: MTLRenderPipelineState
     let descriptor: MTLRenderPassDescriptor
+    let gAlbedoTexture: any MTLTexture
     let gViewPosTexture: any MTLTexture // avoid heavy (and incorrect resulting) inverse from depth tex
     let gNormalTexture: any MTLTexture
     let outTexture: any MTLTexture
 
-    init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, gNormalTexture: any MTLTexture, gViewPosTexture: any MTLTexture) {
+    init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, gAlbedoTexture: any MTLTexture, gNormalTexture: any MTLTexture, gViewPosTexture: any MTLTexture) {
         let library = device.makeBundleDebugLibrary()!
         let downsampleFactor: Int
 #if targetEnvironment(simulator)
@@ -35,12 +36,13 @@ class SurfaceLightPassSetting {
 //        d.colorAttachments[0].destinationAlphaBlendFactor = .zero
         state = try! device.makeRenderPipelineState(descriptor: d)
         descriptor = RenderPassEncoderSettings.renderPassDescriptor(texture: outTexture)
+        self.gAlbedoTexture = gAlbedoTexture
         self.gViewPosTexture = gViewPosTexture
         self.gNormalTexture = gNormalTexture
         self.outTexture = outTexture
     }
 
-    func encode(in commandBuffer: any MTLCommandBuffer, uniforms: Uniforms, lightsBuffer: any MTLBuffer, lightsCount: Int) {
+    func encode(in commandBuffer: any MTLCommandBuffer, uniforms: Uniforms, lightsBuffer: any MTLBuffer, lightsCount: Int, imageBasedLight: (any MTLTexture)?) {
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
         encoder.label = String(describing: type(of: self))
         defer {encoder.endEncoding()}
@@ -50,9 +52,8 @@ class SurfaceLightPassSetting {
         var viewCount = outTexture.arrayLength
         encoder.setVertexBytes(&viewCount, length: MemoryLayout.stride(ofValue: viewCount), index: 1)
 
-        [gViewPosTexture, gNormalTexture].enumerated().forEach { i, inTexture in
-            encoder.setFragmentTexture(inTexture, index: i)
-        }
+        let textures = [gAlbedoTexture, gViewPosTexture, gNormalTexture, imageBasedLight]
+        encoder.setFragmentTextures(textures, range: textures.indices)
 
         var uniforms: [SurfaceLightUniforms] = [
             SurfaceLightUniforms(viewCount: Int32(outTexture.arrayLength),

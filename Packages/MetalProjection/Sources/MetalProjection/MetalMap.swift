@@ -57,6 +57,7 @@ public final class MetalMap {
     public var isLineLights2Enabled: Bool = false
     public var isLineLights3Enabled: Bool = false
     public var lightBaseIntensity: Float = 2
+    public var imageBasedLightTexture: (any MTLTexture)?
 
     private var arkitSession: ARKitSession? {
         didSet {oldValue?.stop()}
@@ -92,7 +93,7 @@ public final class MetalMap {
         brightPass = .init(device: device, width: width / 2, height: height / 2, pixelFormat: pixelFormat, viewCount: viewCount)
         bloomPass = .init(device: device, width: width / 4, height: height / 4, pixelFormat: pixelFormat, viewCount: viewCount)
         volumeLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, depthTexture: scenePass.depthTexture, viewCount: viewCount)
-        surfaceLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, gNormalTexture: scenePass.gNormalTexture, gViewPosTexture: scenePass.gViewPosTexture)
+        surfaceLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, gAlbedoTexture: scenePass.outTexture, gNormalTexture: scenePass.gNormalTexture, gViewPosTexture: scenePass.gViewPosTexture)
         compositePass = .init(device: device, outTexture: llTexture.read())
 
         debugLLTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount, textureUsage: []))
@@ -204,7 +205,7 @@ public final class MetalMap {
             return bloomPass.encode(in: commandBuffer, inTexture: scenePass.gEmissiveTexture)
         }() : nil
         volumeLightPass.encode(in: commandBuffer, uniforms: uniforms, lights: lights)
-        surfaceLightPass.encode(in: commandBuffer, uniforms: uniforms, lightsBuffer: volumeLightPass.lightsBuffer, lightsCount: lights.count)
+        surfaceLightPass.encode(in: commandBuffer, uniforms: uniforms, lightsBuffer: volumeLightPass.lightsBuffer, lightsCount: lights.count, imageBasedLight: imageBasedLightTexture)
         compositePass.encode(in: commandBuffer, inTextures: [scenePass.outTexture, scenePass.gEmissiveTexture, bloomOut, volumeLightPass.outTexture, surfaceLightPass.outTexture])
 
         if let blit = commandBuffer.makeBlitCommandEncoder() {
@@ -233,6 +234,22 @@ public final class MetalMap {
         case .volumeLight?: blitToDebugTexture(from: volumeLightPass.outTexture)
         case .surfaceLight?: copyPass.encode(in: commandBuffer, inTexture: surfaceLightPass.outTexture)
         case .composite?: blitToDebugTexture(from: compositePass.outTexture)
+        }
+    }
+
+    @MainActor public func setImageBasedLightTexture(_ texture: TextureResource?) throws {
+        if let texture {
+            if imageBasedLightTexture == nil {
+                let imageBasedLightTexture = MTLCreateSystemDefaultDevice()!.makeTexture(descriptor: {
+                    let d = MTLTextureDescriptor.textureCubeDescriptor(pixelFormat: .rgba16Float, size: 128, mipmapped: true)
+                    d.usage = [.shaderRead, .shaderWrite]
+                    return d
+                }())
+                self.imageBasedLightTexture = imageBasedLightTexture
+            }
+            try texture.copy(to: imageBasedLightTexture!)
+        } else {
+            imageBasedLightTexture = nil
         }
     }
 }
