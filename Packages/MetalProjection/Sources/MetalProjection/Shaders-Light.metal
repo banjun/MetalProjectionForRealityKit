@@ -136,7 +136,8 @@ half4 surface_light_fragment(FullscreenIn in [[stage_in]],
     half specularOcclusion = 1.0h - roughness * 0.5h;
     half3 indirectSpecular = specColor * fresnel * specularOcclusion;
     float diffuseLOD = iblMipLevels;
-    half3 diffColor = iblTex.sample(linearSampler, float3(nWorld), level(diffuseLOD)).rgb * iblExponent;
+    half diffuseBias = 127.0h / 255.0h;
+    half3 diffColor = diffuseBias + iblTex.sample(linearSampler, float3(nWorld), level(diffuseLOD)).rgb * iblExponent;
     half3 indirectDiffuse = diffColor * half3(albedo) * kD;
 
     half3 outRGB = (indirectDiffuse + indirectSpecular) * ao;

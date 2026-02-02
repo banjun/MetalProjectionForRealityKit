@@ -34,6 +34,7 @@ NS_OPTIONS(uint32_t, FragmentArgumentFlags) {
     HasAOTexture = 1 << 2,
     HasRoughnessTexture = 1 << 3,
     HasMetalicTexture = 1 << 4,
+    HasNormalTexture = 1 << 5,
     EmitsLight = 1 << 10,
     ReceivesLight = 1 << 11,
 };
@@ -46,6 +47,7 @@ struct FragmentUniforms {
     Texture2DHalf(emissiveColorTexture) ArgID(4);
     simd_half3 orm                      ArgID(5);
     Texture2DHalf(ormTexture)           ArgID(6);
+    Texture2DHalf(normalTexture)        ArgID(7);
 };
 
 struct Vertex {

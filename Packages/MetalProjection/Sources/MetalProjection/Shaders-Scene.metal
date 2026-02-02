@@ -11,7 +11,9 @@ struct VertexOut {
     float4 position [[position]];
     uint vid [[render_target_array_index]];
     float2 uv;
-    half2 normal;
+    half3 normal;
+    half3 tangent;
+    half3 bitangent;
     half4 viewPos;
 };
 struct FragmentOut {
@@ -32,10 +34,17 @@ VertexOut gbuffer_vertex(VertexIn in [[stage_in]],
     auto pView4 = uniform.cameraFromWorldTransform * pWorld4;
     auto pClip4 = uniform.projectionFromCameraTransform * pView4;
 
+    // TODO: non-uniform-scale, inverse-transpose
+    auto normalMatrix = float3x3(uniform.cameraFromModelTransform[0].xyz,
+                                 uniform.cameraFromModelTransform[1].xyz,
+                                 uniform.cameraFromModelTransform[2].xyz);
+
     return VertexOut {
         .position = pClip4,
-        .uv = in.uv,
-        .normal = half2(normalize((uniform.cameraFromModelTransform * float4(in.normal, 0)).xyz).xy), // TODO: use NormalMatrix as normal is inverse-transpos
+        .uv = float2(in.uv.x, 1 - in.uv.y),
+        .normal = half3(normalize(normalMatrix * in.normal)),
+        .tangent = half3(normalize(normalMatrix * in.tangent)),
+        .bitangent = half3(normalize(normalMatrix * in.bitangent)),
         .viewPos = half4(pView4),
         .vid = vid,
     };
@@ -46,21 +55,37 @@ FragmentOut gbuffer_fragment(VertexOut in [[stage_in]],
                              constant FragmentUniforms &uniforms [[buffer(0)]]) {
     FragmentOut out;
     auto uv = in.uv;
-    uv.y = 1 - uv.y;
+//    auto s = linearSampler;
+    constexpr auto s = sampler(filter::linear,
+                               mip_filter::linear,
+                               max_anisotropy(4), // anisotropy and lod_bias could improve in removing patchwork artifacts for photogrametry models
+                               address::clamp_to_edge);
 
     if (uniforms.flags & HasBaseColorTexture) {
-        out.color = uniforms.baseColorTexture.sample(linearSampler, uv);
+        out.color = uniforms.baseColorTexture.sample(s, uv, bias(-0.5));
     } else {
         out.color = half4(uniforms.baseColor, 1);
     }
 
     if (uniforms.flags & HasEmissiveColorTexture) {
-        out.emissive = uniforms.emissiveColorTexture.sample(linearSampler, uv);
+        out.emissive = uniforms.emissiveColorTexture.sample(s, uv);
     } else {
         out.emissive = half4(uniforms.emissiveColor, 1);
     }
 
-    out.orm = uniforms.ormTexture.sample(linearSampler, uv);
+    if (uniforms.flags & HasNormalTexture) {
+        // read normal in tangent space and convert using TBN
+        auto N = normalize(in.normal);
+        auto T = normalize(in.tangent);
+        auto B = normalize(in.bitangent);
+        auto TBN = half3x3(T, B, N);
+        auto normal = normalize(uniforms.normalTexture.sample(s, uv, bias(-0.5)).xyz * 2.0h - 1.0h);
+        out.normal = (TBN * normal).xy;
+    } else {
+        out.normal = in.normal.xy;
+    }
+
+    out.orm = uniforms.ormTexture.sample(s, uv);
     if (uniforms.flags & HasAOTexture) {} else {
         out.orm.x = uniforms.orm.x;
     }
@@ -71,8 +96,6 @@ FragmentOut gbuffer_fragment(VertexOut in [[stage_in]],
         out.orm.z = uniforms.orm.z;
     }
 
-    // TODO
-    out.normal = in.normal;
     out.viewPos = in.viewPos;
     return out;
 }

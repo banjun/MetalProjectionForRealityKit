@@ -44,7 +44,7 @@ class SurfaceLightPassSetting {
         self.gORMTexture = gORMTexture
     }
 
-    func encode(in commandBuffer: any MTLCommandBuffer, uniforms: Uniforms, lightsBuffer: any MTLBuffer, lightsCount: Int, imageBasedLight: (any MTLTexture)?, iblIntensityExp: Float = -30) {
+    func encode(in commandBuffer: any MTLCommandBuffer, uniforms: Uniforms, lightsBuffer: any MTLBuffer, lightsCount: Int, imageBasedLight: (any MTLTexture)?, iblIntensityExp: Float16 = -0.5) {
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
         encoder.label = String(describing: type(of: self))
         defer {encoder.endEncoding()}
