@@ -44,7 +44,7 @@ class SurfaceLightPassSetting {
         self.gORMTexture = gORMTexture
     }
 
-    func encode(in commandBuffer: any MTLCommandBuffer, uniforms: Uniforms, lightsBuffer: any MTLBuffer, lightsCount: Int, imageBasedLight: (any MTLTexture)?, iblIntensityExp: Float16 = -0.5) {
+    func encode(in commandBuffer: any MTLCommandBuffer, uniforms: Uniforms, lightsBuffer: any MTLBuffer, lightsCount: Int, imageBasedLight: (any MTLTexture)?, iblIntensityExp: Float16 = -0.5, intensity: Float) {
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
         encoder.label = String(describing: type(of: self))
         defer {encoder.endEncoding()}
@@ -62,12 +62,14 @@ class SurfaceLightPassSetting {
                                  lightCount: Int32(lightsCount),
                                  cameraFromProjectionTransform: uniforms.projection0Inverse,
                                  worldFromCameraTransform: uniforms.cameraTransformL,
-                                 cameraFromWorldTransform: uniforms.cameraTransformL.inverse),
+                                 cameraFromWorldTransform: uniforms.cameraTransformL.inverse,
+                                 intensity: intensity),
             SurfaceLightUniforms(viewCount: Int32(outTexture.arrayLength),
                                  lightCount: Int32(lightsCount),
                                  cameraFromProjectionTransform: uniforms.projection1Inverse,
                                  worldFromCameraTransform: uniforms.cameraTransformR,
-                                 cameraFromWorldTransform: uniforms.cameraTransformR.inverse),
+                                 cameraFromWorldTransform: uniforms.cameraTransformR.inverse,
+                                 intensity: intensity),
         ]
         encoder.setFragmentBytes(&uniforms, length: MemoryLayout<SurfaceLightUniforms>.stride * 2, index: 0)
         encoder.setFragmentBuffer(lightsBuffer, offset: 0, index: 1)

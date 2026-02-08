@@ -82,4 +82,5 @@ struct SurfaceLightUniforms {
     simd_float4x4 cameraFromProjectionTransform;
     simd_float4x4 worldFromCameraTransform;
     simd_float4x4 cameraFromWorldTransform;
+    float intensity;
 };

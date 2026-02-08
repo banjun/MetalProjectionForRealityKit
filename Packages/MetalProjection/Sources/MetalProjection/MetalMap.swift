@@ -56,7 +56,8 @@ public final class MetalMap {
     public var isLineLights1Enabled: Bool = false
     public var isLineLights2Enabled: Bool = false
     public var isLineLights3Enabled: Bool = false
-    public var lightBaseIntensity: Float = 2
+    public var volumeLightBaseIntensity: Float = 1
+    public var surfaceLightBaseIntensity: Float = 10
     public var imageBasedLightTexture: (any MTLTexture)?
 
     private var arkitSession: ARKitSession? {
@@ -174,23 +175,23 @@ public final class MetalMap {
         let time: Float = Float(CACurrentMediaTime())
         let dmxStride = 8
         let mainLights: [VolumeSpotLight] = [
-            light(position: .init(-1.0, 3, -1), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(0.25, 0.5, 1), intensity: lightBaseIntensity, dmxStart: 1),
-            light(position: .init(-0.5, 3, -1), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * sin(time)]), angleCos: cos(.pi / 10), color: .init(1, 0.25, 0.5), intensity: lightBaseIntensity, dmxStart: 1 + dmxStride),
-            light(position: .init(0, 3, -1), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(1, 1, 1), intensity: lightBaseIntensity * 0.8, dmxStart: 1 + dmxStride * 2),
-            light(position: .init(0.5, 3, -1), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * -sin(time)]), angleCos: cos(.pi / 10), color: .init(0.25, 0.5, 1), intensity: lightBaseIntensity, dmxStart: 1 + dmxStride * 3),
-            light(position: .init(1.0, 3, -1), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(1, 0.25, 0.5), intensity: lightBaseIntensity, dmxStart: 1 + dmxStride * 4),
+            light(position: .init(-1.0, 3, -1), direction: simd_quatf(angle: .pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(0.25, 0.5, 1), intensity: 1, dmxStart: 1),
+            light(position: .init(-0.5, 3, -1), direction: simd_quatf(angle: .pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * sin(time)]), angleCos: cos(.pi / 10), color: .init(1, 0.25, 0.5), intensity: 1, dmxStart: 1 + dmxStride),
+            light(position: .init(0, 3, -1), direction: simd_quatf(angle:  0, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(1, 1, 1), intensity: 0.8, dmxStart: 1 + dmxStride * 2),
+            light(position: .init(0.5, 3, -1), direction: simd_quatf(angle:  -.pi / 8, axis: [0,0,1]).act([0.2 * cos(time), -1, 0.2 * -sin(time)]), angleCos: cos(.pi / 10), color: .init(0.25, 0.5, 1), intensity: 1, dmxStart: 1 + dmxStride * 3),
+            light(position: .init(1.0, 3, -1), direction: simd_quatf(angle:  -.pi / 6, axis: [0,0,1]).act([0, -1, 0]), angleCos: cos(.pi / 10), color: .init(1, 0.25, 0.5), intensity: 1, dmxStart: 1 + dmxStride * 4),
         ]
         let lineLights1: [VolumeSpotLight] = (0..<32).map {
             let direction = simd_quatf(angle: time + 0.1 * Float($0), axis: [1, 0, 0]).act([0, -1, 0])
-            return light(position: simd_float3((Float($0) - 15), 5, -5), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, lightBaseIntensity * dot(direction, [0, -1, 0])), dmxStart: (mainLights.count + $0) * dmxStride + 1)
+            return light(position: simd_float3((Float($0) - 15), 5, -5), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0])), dmxStart: (mainLights.count + $0) * dmxStride + 1)
         }
         let lineLights2: [VolumeSpotLight] = (0..<32).map {
             let direction = simd_quatf(angle: time + 0.1 * Float($0), axis: [1, 0, 0]).act([0, -1, 0])
-            return light(position: simd_float3((Float($0) - 15), 5, -10), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, lightBaseIntensity * dot(direction, [0, -1, 0]))) // NOTE: up to 64 lights in 1 universe:, dmxStart: (mainLights.count + lineLights1.count + $0) * dmxStride + 1)
+            return light(position: simd_float3((Float($0) - 15), 5, -10), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0]))) // NOTE: up to 64 lights in 1 universe:, dmxStart: (mainLights.count + lineLights1.count + $0) * dmxStride + 1)
         }
         let lineLights3: [VolumeSpotLight] = (0..<32).map {
             let direction = simd_quatf(angle: time + 0.1 * Float($0), axis: [1, 0, 0]).act([0, -1, 0])
-            return light(position: simd_float3((Float($0) - 15), 5, -15), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, lightBaseIntensity * dot(direction, [0, -1, 0]))) // NOTE: up to 64 lights in 1 universe:, dmxStart: (mainLights.count + lineLights1.count + lineLights2.count + $0) * dmxStride + 1)
+            return light(position: simd_float3((Float($0) - 15), 5, -15), direction: direction, angleCos: cos(.pi / 12), color: simd_float3(1, 1, 1), intensity: max(0, dot(direction, [0, -1, 0]))) // NOTE: up to 64 lights in 1 universe:, dmxStart: (mainLights.count + lineLights1.count + lineLights2.count + $0) * dmxStride + 1)
         }
         let lights: [VolumeSpotLight] = [
             isMainLightsEnabled ? mainLights : [],
@@ -204,8 +205,8 @@ public final class MetalMap {
 //            brightPass.encode(in: commandBuffer, inTexture: scenePass.gEmissiveTexture)
             return bloomPass.encode(in: commandBuffer, inTexture: scenePass.gEmissiveTexture)
         }() : nil
-        volumeLightPass.encode(in: commandBuffer, uniforms: uniforms, lights: lights)
-        surfaceLightPass.encode(in: commandBuffer, uniforms: uniforms, lightsBuffer: volumeLightPass.lightsBuffer, lightsCount: lights.count, imageBasedLight: imageBasedLightTexture)
+        volumeLightPass.encode(in: commandBuffer, uniforms: uniforms, lights: lights, intensity: volumeLightBaseIntensity)
+        surfaceLightPass.encode(in: commandBuffer, uniforms: uniforms, lightsBuffer: volumeLightPass.lightsBuffer, lightsCount: lights.count, imageBasedLight: imageBasedLightTexture, intensity: surfaceLightBaseIntensity)
         compositePass.encode(in: commandBuffer, inTextures: [scenePass.outTexture, scenePass.gEmissiveTexture, bloomOut, volumeLightPass.outTexture, surfaceLightPass.outTexture])
 
         if let blit = commandBuffer.makeBlitCommandEncoder() {

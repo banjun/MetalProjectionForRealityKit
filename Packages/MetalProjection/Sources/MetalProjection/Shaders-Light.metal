@@ -21,6 +21,7 @@ VolumeLightFragment volume_light_vertex(VolumeLightVertex in [[stage_in]],
                                         constant VertexUniforms *uniforms [[buffer(1)]],
                                         constant VolumeSpotLight *lights [[buffer(2)]],
                                         constant int &lightCount [[buffer(3)]],
+                                        constant float &intensity [[buffer(4)]],
                                         const uint iid [[instance_id]]) {
     auto viewCount = uniforms[0].viewCount; // use 0 as same acroll all index
     auto vid = iid % viewCount;
@@ -39,7 +40,7 @@ VolumeLightFragment volume_light_vertex(VolumeLightVertex in [[stage_in]],
     VolumeLightFragment out;
     out.position = pClip4;
     out.vid = vid;
-    out.color = float4(light.color, light.intensity);
+    out.color = float4(light.color, light.intensity * intensity);
     out.posInWorld = pWorld4.xyz;
     out.lightPosInWorld = lightPosInWorld4.xyz;
     out.lightDirInWorld = light.direction;
@@ -161,7 +162,7 @@ half4 surface_light_fragment(FullscreenIn in [[stage_in]],
         auto distanceAtt = exp(-0.5 * sqrt(dist2)); // 1.0 / (1.0 + dist2);
         auto spotAtt = smoothstep(light.angleCos, light.angleCos + 0.05, spotCos);
 
-        float3 radiance = light.color * (light.intensity)
+        float3 radiance = light.color * (light.intensity * uniforms[vid].intensity)
         * NdotL
         * distanceAtt
         * spotAtt

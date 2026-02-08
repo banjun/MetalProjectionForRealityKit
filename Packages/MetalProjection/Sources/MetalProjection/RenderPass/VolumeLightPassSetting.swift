@@ -65,7 +65,7 @@ class VolumeLightPassSetting {
         lightsBuffer = device.makeBuffer(length: MemoryLayout<VolumeSpotLight>.stride * maxLights, options: .storageModeShared)!
     }
 
-    func encode(in commandBuffer: any MTLCommandBuffer, uniforms: Uniforms, lights: [VolumeSpotLight]) {
+    func encode(in commandBuffer: any MTLCommandBuffer, uniforms: Uniforms, lights: [VolumeSpotLight], intensity: Float) {
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
         encoder.label = String(describing: type(of: self))
         defer {encoder.endEncoding()}
@@ -93,6 +93,8 @@ class VolumeLightPassSetting {
         lightsBuffer.contents().copyMemory(from: lights, byteCount: MemoryLayout<VolumeSpotLight>.stride * lightCounts)
         encoder.setVertexBuffer(lightsBuffer, offset: 0, index: 2)
         encoder.setVertexBytes(&lightCounts, length: MemoryLayout.stride(ofValue: lightCounts), index: 3)
+        var intensity = intensity
+        encoder.setVertexBytes(&intensity, length: MemoryLayout.stride(ofValue: intensity), index: 4)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: normalizedConeVertices.count, instanceCount: lightCounts * outTexture.arrayLength)
     }
 }

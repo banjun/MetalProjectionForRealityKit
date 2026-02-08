@@ -61,8 +61,13 @@ struct ContentView: View {
                                 Toggle("Line3", isOn: .init(get: {metalMap.isLineLights3Enabled}, set: {metalMap.isLineLights3Enabled = $0})).toggleStyle(.button)
                             }
                             HStack {
-                                Text("Base Intensity = \(metalMap.lightBaseIntensity, format: .number.precision(.fractionLength(3)))")
-                                Slider(value: $metalMap.lightBaseIntensity, in: 0.1...10)
+                                if metalMap.debugBlit == .volumeLight {
+                                    Text("Volume Intensity = \(metalMap.volumeLightBaseIntensity, format: .number.precision(.fractionLength(3)))")
+                                    Slider(value: $metalMap.volumeLightBaseIntensity, in: 0.1...10)
+                                } else {
+                                    Text("Surface Intensity = \(metalMap.surfaceLightBaseIntensity, format: .number.precision(.fractionLength(3)))")
+                                    Slider(value: $metalMap.surfaceLightBaseIntensity, in: 1...100)
+                                }
                             }
                         }
                     }

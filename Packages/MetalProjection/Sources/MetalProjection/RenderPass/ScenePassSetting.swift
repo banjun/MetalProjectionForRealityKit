@@ -5,6 +5,7 @@ import MetalProjectionBridgingHeader
 class ScenePassSetting {
     private let device: any MTLDevice
     private let state: MTLRenderPipelineState
+    private let pipelineDescriptor: MTLRenderPipelineDescriptor
     private let ormState: MTLComputePipelineState
     private let fragmentArgEncoder: (any MTLArgumentEncoder)
     private var fragmentArgBuffer: (any MTLBuffer)?
@@ -20,6 +21,9 @@ class ScenePassSetting {
     let gViewPosTexture: any MTLTexture
     let gEmissiveTexture: any MTLTexture
     let gORMTexture: any MTLTexture // Occlusion, Roughness, Metalic
+
+    private var missingFunctions: [String] = []
+    private var shaderGraphMaterialPipelineStates: [String: MTLRenderPipelineState] = [:]
 
     convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat = .depth16Unorm, viewCount: Int, llDescriptor: LowLevelMesh.Descriptor = USDZLowLevelMeshImporter.Vertex.descriptor) {
 #if DEBUG
@@ -67,8 +71,10 @@ class ScenePassSetting {
         descriptor.colorAttachments[4].storeAction = .store
         descriptor.colorAttachments[4].clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 0)
 
-        let (state, fragmentFunction) = RenderPassEncoderSettings.makeRenderPipelineState(device: device, vertexFunction: "gbuffer_vertex", fragmentFunction: "gbuffer_fragment", llDescriptor: llDescriptor, pixelFormats: [outTexture, gNormalTexture, gViewPosTexture, gEmissiveTexture, gORMTexture].map(\.pixelFormat), depthPixelFormat: depthTexture.pixelFormat)
-        self.state = state
+        let pipelineDescriptor = RenderPassEncoderSettings.makeRenderPipelineDescriptor(device: device, vertexFunction: "gbuffer_vertex", fragmentFunction: "gbuffer_fragment", llDescriptor: llDescriptor, pixelFormats: [outTexture, gNormalTexture, gViewPosTexture, gEmissiveTexture, gORMTexture].map(\.pixelFormat), depthPixelFormat: depthTexture.pixelFormat)
+        self.pipelineDescriptor = pipelineDescriptor
+        let fragmentFunction = pipelineDescriptor.fragmentFunction!
+        self.state = try! device.makeRenderPipelineState(descriptor: pipelineDescriptor)
         fragmentArgEncoder = fragmentFunction.makeArgumentEncoder(bufferIndex: 0)
 
         ormState = RenderPassEncoderSettings.makeComputePipelineState(device: device, kernelFunction: "packORM")
@@ -108,6 +114,10 @@ class ScenePassSetting {
             let materials = (entity as? ModelEntity)?.model!.materials ?? []
             for part in llMesh.parts {
                 let m = part.materialIndex < materials.count ? materials[part.materialIndex] : nil
+                if case let shaderGraph as ShaderGraphMaterial = m {
+                    continue // TODO: should be separated in loop level
+                }
+
                 let offset = fragmentArgBufferOffset
                 defer {fragmentArgBufferOffset += argBufferAlignedLength}
                 fragmentArgEncoder.setArgumentBuffer(fragmentArgBuffer, offset: offset)
@@ -184,23 +194,64 @@ class ScenePassSetting {
         // draw
         fragmentArgBufferOffset = 0
         encoder.setFragmentBuffer(fragmentArgBuffer, offset: 0, index: 0)
-        for (entity, llMesh) in entityLLMeshes {
-            encoder.setVertexBuffer(llMesh.read(bufferIndex: 0, using: commandBuffer), offset: 0, index: 0)
-            let worldFromModelTransform = entity.convert(transform: .identity, to: nil).matrix
-            for i in 0..<vertexUniforms.count {
-                vertexUniforms[i].worldFromModelTransform = worldFromModelTransform
-                vertexUniforms[i].cameraFromModelTransform = vertexUniforms[i].cameraFromWorldTransform * worldFromModelTransform
-            }
-            encoder.setVertexBytes(&vertexUniforms, length: MemoryLayout<VertexUniforms>.stride * vertexUniforms.count, index: 1)
 
-            let indexBuffer = llMesh.readIndices(using: commandBuffer)
+        func setVertexBuffersDefered(entity: Entity, llMesh: LowLevelMesh) -> () -> MTLBuffer {
+            {
+                encoder.setVertexBuffer(llMesh.read(bufferIndex: 0, using: commandBuffer), offset: 0, index: 0)
+                let worldFromModelTransform = entity.convert(transform: .identity, to: nil).matrix
+                for i in 0..<vertexUniforms.count {
+                    vertexUniforms[i].worldFromModelTransform = worldFromModelTransform
+                    vertexUniforms[i].cameraFromModelTransform = vertexUniforms[i].cameraFromWorldTransform * worldFromModelTransform
+                }
+                encoder.setVertexBytes(&vertexUniforms, length: MemoryLayout<VertexUniforms>.stride * vertexUniforms.count, index: 1)
+
+                return llMesh.readIndices(using: commandBuffer)
+            }
+        }
+
+        var shaderGraphMaterialParts: [(part: LowLevelMesh.Part, indexBuffer: () -> MTLBuffer, state: MTLRenderPipelineState)] = []
+        for (entity, llMesh) in entityLLMeshes {
+            // --
+            let materials = (entity as? ModelEntity)?.model!.materials ?? []
+            // --
+            let deferred = setVertexBuffersDefered(entity: entity, llMesh: llMesh)
+            let indexBuffer = deferred()
             for part in llMesh.parts {
+                let m = part.materialIndex < materials.count ? materials[part.materialIndex] : nil
+                if case let sgm as ShaderGraphMaterial = m, let name = sgm.name {
+                    // ShaderGraphMaterial uses another fragment function and does not use fragment argument buffers for default fragment function
+                    let fragmentFunctionName = "gbuffer_RCP_" + name // naming convention
+                    let library = device.makeBundleDebugLibrary()!
+                    if let fragmentFunction = library.makeFunction(name: fragmentFunctionName) {
+                        let state = shaderGraphMaterialPipelineStates[fragmentFunction.name] ?? {
+                            let d = pipelineDescriptor.copy() as! MTLRenderPipelineDescriptor
+                            d.label = fragmentFunction.name
+                            d.fragmentFunction = fragmentFunction
+                            let state = try! device.makeRenderPipelineState(descriptor: d)
+                            shaderGraphMaterialPipelineStates[fragmentFunction.name] = state
+                            return state
+                        }()
+                        shaderGraphMaterialParts.append((part, deferred, state))
+                        continue // does not encode into fragment buffer, because using another fragment function
+                    } else if !missingFunctions.contains(fragmentFunctionName) {
+                        NSLog("%@", "⚠️ \(#function): [[fragment]] function `\(fragmentFunctionName)` should be exist in Metal Shaders, but not found.")
+                        missingFunctions.append(fragmentFunctionName)
+                    }
+                }
+
                 if fragmentArgBufferOffset != 0 {
                     encoder.setFragmentBufferOffset(fragmentArgBufferOffset, index: 0)
                 }
                 fragmentArgBufferOffset += argBufferAlignedLength
                 encoder.drawIndexedPrimitives(type: .triangle, indexCount: part.indexCount, indexType: .uint32, indexBuffer: indexBuffer, indexBufferOffset: part.indexOffset, instanceCount: viewCount)
             }
+        }
+
+        // draw ShaderGraphMaterials with switching pipeline state
+        for (part, deferred, state) in shaderGraphMaterialParts {
+            encoder.setRenderPipelineState(state)
+            let indexBuffer = deferred()
+            encoder.drawIndexedPrimitives(type: .triangle, indexCount: part.indexCount, indexType: .uint32, indexBuffer: indexBuffer, indexBufferOffset: part.indexOffset, instanceCount: viewCount)
         }
     }
 
