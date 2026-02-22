@@ -63,6 +63,18 @@ struct ImmersiveView: View {
                     return gestureOnlyEntity
                 }())
                 await root.addChild({
+                    let usdzEntity = try! await ModelEntity(named: "花海咲季2-blender-ツノ消し-rcp-restore-ao")
+                    let llImporter = try! USDZLowLevelMeshImporter(usdz: usdzEntity)
+                    let gestureOnlyEntity: Entity = try! llImporter.emptyModelEntity()
+                    gestureOnlyEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
+                    gestureOnlyEntity.components.set(InputTargetComponent(allowedInputTypes: .indirect))
+                    gestureOnlyEntity.components.set(CollisionComponent(shapes: [.generateSphere(radius: 0.1)]))
+                    gestureOnlyEntity.components.set(ManipulationComponent())
+                    gestureOnlyEntity.components[ManipulationComponent.self]!.releaseBehavior = .stay
+                    gestureOnlyEntity.position = [-0.5, 1, -0.5]
+                    return gestureOnlyEntity
+                }())
+                await root.addChild({
                     let llImporter = try! await USDZLowLevelMeshImporter(entityNamed: "GridSphere", in: realityKitContentBundle)
                     let empty = try! llImporter.emptyModelEntity()
                     empty.position = [0, 1, -0.5]

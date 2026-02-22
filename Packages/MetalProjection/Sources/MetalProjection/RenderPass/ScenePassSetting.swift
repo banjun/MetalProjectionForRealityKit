@@ -8,7 +8,9 @@ class ScenePassSetting {
     private let pipelineDescriptor: MTLRenderPipelineDescriptor
     private let ormState: MTLComputePipelineState
     private let fragmentArgEncoder: (any MTLArgumentEncoder)
-    private var fragmentArgBuffer: (any MTLBuffer)?
+    private var fragmentArgBuffers: [any MTLBuffer] = []
+    private var fragmentArgBufferIndex: Int = 0
+    private var fragmentArgBufferSemaphore = DispatchSemaphore(value: 3)
     let descriptor: MTLRenderPassDescriptor
     let outTexture: any MTLTexture
     let depthTexture: any MTLTexture
@@ -104,8 +106,14 @@ class ScenePassSetting {
         let totalPartsCount = entityLLMeshes.reduce(into: 0) {$0 += $1.1.parts.count}
         let argBufferAlignment = 256 // Fragment Function(render_fragment): the offset into the buffer uniforms that is bound at Buffer index 0 must be a multiple of 256
         let argBufferAlignedLength = (fragmentArgEncoder.encodedLength + argBufferAlignment - 1) & ~(argBufferAlignment - 1)
+        // triple buffered (CPU writing, ready to pass to GPU, GPU reading)
+        fragmentArgBufferSemaphore.wait()
+        commandBuffer.addCompletedHandler {[weak s = fragmentArgBufferSemaphore] _ in s?.signal()}
+        defer {fragmentArgBufferIndex = (fragmentArgBufferIndex + 1) % 3}
+        var fragmentArgBuffer = fragmentArgBufferIndex < fragmentArgBuffers.count ? fragmentArgBuffers[fragmentArgBufferIndex] : nil
         if fragmentArgBuffer?.length != argBufferAlignedLength * totalPartsCount {
-            fragmentArgBuffer = device.makeBuffer(length: argBufferAlignedLength * totalPartsCount, options: .storageModeShared)
+            fragmentArgBuffers = (0..<3).compactMap {_ in device.makeBuffer(length: argBufferAlignedLength * totalPartsCount, options: .storageModeShared)}
+            fragmentArgBuffer = fragmentArgBufferIndex < fragmentArgBuffers.count ? fragmentArgBuffers[fragmentArgBufferIndex] : nil
         }
         guard let fragmentArgBuffer else { return }
         var usedTextures: [any MTLTexture] = []
