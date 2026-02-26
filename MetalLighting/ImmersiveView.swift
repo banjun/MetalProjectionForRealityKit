@@ -8,7 +8,6 @@ import UIKit
 struct ImmersiveView: View {
     @Environment(AppModel.self) private var appModel
     var metalMap: MetalMap {appModel.metalMap}
-    @GestureState private var dragStartTransform: Transform?
     private let modelSortGroup = ModelSortGroup(depthPass: .postPass)
 
     var body: some View {
@@ -30,36 +29,11 @@ struct ImmersiveView: View {
                 await root.addChild({
                     let usdzEntity = try! await ModelEntity(named: "ありす4")
                     let llImporter = try! USDZLowLevelMeshImporter(usdz: usdzEntity)
-                    //                    let usdzLLEntity = try! llImporter.modelEntity()
-                    let usdzLLEntity = try! llImporter.modelEntity() // NOTE: LowLevelMesh entity cannot be compatible with ModelSortGroup ???
-                    usdzLLEntity.position = [0, 1, -0.5]
-                    usdzLLEntity.transform.rotation = .init(angle: .pi, axis: [0, 1, 0])
-                    usdzLLEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
-                    // NOTE: adding ManipulationComponent will crash soon. why?
-                    usdzLLEntity.components.set(CollisionComponent(shapes: [.generateSphere(radius: 0.1)], isStatic: true))
-                    usdzLLEntity.components.set(InputTargetComponent(allowedInputTypes: .all))
-                    usdzLLEntity.components.set(GestureComponent(DragGesture(coordinateSpace: .immersiveSpace).targetedToEntity(usdzLLEntity).updating($dragStartTransform) { value, state, transaction in
-                        state = state ?? value.entity.transform
-                        var t = state!
-                        let location = value.convert(value.location3D, from: .global, to: .scene)
-                        let startLocation = value.convert(value.startLocation3D, from: .global, to: .scene)
-                        let translation = location - startLocation
-                        if let pose = value.inputDevicePose3D, let startPose = value.startInputDevicePose3D {
-                            t.rotation = simd_quatf(pose.rotation.rotated(by: startPose.rotation.inverse)) * t.rotation
-                        }
-                        t.translation += .init(translation)
-                        value.entity.transform = t
-                    }))
-                    usdzLLEntity.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 1))
-                    usdzLLEntity.isEnabled = true
-                    //                    return usdzLLEntity
-
                     let gestureOnlyEntity: Entity = try! llImporter.emptyModelEntity()
+                    gestureOnlyEntity.transform.rotation = .init(angle: .pi, axis: [0, 1, 0])
                     gestureOnlyEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
-                    ManipulationComponent.configureEntity(gestureOnlyEntity, hoverEffect: .highlight(.default), allowedInputTypes: .indirect, collisionShapes: usdzLLEntity.components[CollisionComponent.self]!.shapes)
-                    gestureOnlyEntity.components[ManipulationComponent.self]!.releaseBehavior = .stay
-                    gestureOnlyEntity.position = usdzLLEntity.position
-                    gestureOnlyEntity.transform.rotation = usdzLLEntity.transform.rotation
+                    gestureOnlyEntity.configureSimpleManipulationGestureComponent(collisionShapes: [.generateSphere(radius: 0.075).offsetBy(translation: [0, 0.075, 0])])
+                    gestureOnlyEntity.position = [0, 1, -0.5]
                     return gestureOnlyEntity
                 }())
                 await root.addChild({
@@ -67,10 +41,7 @@ struct ImmersiveView: View {
                     let llImporter = try! USDZLowLevelMeshImporter(usdz: usdzEntity)
                     let gestureOnlyEntity: Entity = try! llImporter.emptyModelEntity()
                     gestureOnlyEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
-                    gestureOnlyEntity.components.set(InputTargetComponent(allowedInputTypes: .indirect))
-                    gestureOnlyEntity.components.set(CollisionComponent(shapes: [.generateSphere(radius: 0.1)]))
-                    gestureOnlyEntity.components.set(ManipulationComponent())
-                    gestureOnlyEntity.components[ManipulationComponent.self]!.releaseBehavior = .stay
+                    gestureOnlyEntity.configureSimpleManipulationGestureComponent(collisionShapes: [.generateSphere(radius: 0.075).offsetBy(translation: [0, 0.075, 0])])
                     gestureOnlyEntity.position = [-0.5, 1, -0.5]
                     return gestureOnlyEntity
                 }())
