@@ -120,8 +120,7 @@ public final class MetalMap {
             self.worldTracker = worldTracker
             return
         }
-        mach_continuous_time()
-        guard let deviceAnchorPredicted = worldTracker.queryDeviceAnchor(atTimestamp: CACurrentMediaTime() + 0.088) else { return }
+        guard let deviceAnchorPredicted = worldTracker.queryDeviceAnchor(atTimestamp: CACurrentMediaTime() + 0.010) else { return }
         #if targetEnvironment(simulator)
         deviceAnchorHistory.append(deviceAnchorPredicted)
         let deviceAnchorTransform = deviceAnchorHistory.count < 8 ? deviceAnchorPredicted.originFromAnchorTransform : {
