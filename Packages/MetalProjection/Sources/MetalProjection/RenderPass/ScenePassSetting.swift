@@ -27,7 +27,7 @@ class ScenePassSetting {
     private var missingFunctions: [String] = []
     private var shaderGraphMaterialPipelineStates: [String: MTLRenderPipelineState] = [:]
 
-    convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat = .depth16Unorm, viewCount: Int, llDescriptor: LowLevelMesh.Descriptor = USDZLowLevelMeshImporter.Vertex.descriptor) {
+    convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat = .depth16Unorm, viewCount: Int, llDescriptor: LowLevelMesh.Descriptor = USDZLowLevelMeshImporter.Vertex.descriptor, rasterizationRateMap: (any MTLRasterizationRateMap)?) {
 #if DEBUG
         let usage: MTLTextureUsage = [.renderTarget, .shaderRead] // .shaderRead is just for debug. not needed for production
 #else
@@ -36,9 +36,9 @@ class ScenePassSetting {
         self.init(device: device,
                   outTexture: RenderPassEncoderSettings.makeTexture("Albedo", device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount),
                   depthTexture: RenderPassEncoderSettings.makeTexture("Depth", device: device, width: width, height: height, pixelFormat: depthPixelFormat, usage: usage, viewCount: viewCount),
-                  llDescriptor: llDescriptor)
+                  llDescriptor: llDescriptor, rasterizationRateMap: rasterizationRateMap)
     }
-    init(device: any MTLDevice, outTexture: any MTLTexture, depthTexture: any MTLTexture, llDescriptor: LowLevelMesh.Descriptor) {
+    init(device: any MTLDevice, outTexture: any MTLTexture, depthTexture: any MTLTexture, llDescriptor: LowLevelMesh.Descriptor, rasterizationRateMap: (any MTLRasterizationRateMap)?) {
         self.device = device
         self.outTexture = outTexture
         self.depthTexture = depthTexture
@@ -56,6 +56,7 @@ class ScenePassSetting {
         self.gORMTexture = RenderPassEncoderSettings.makeTexture("AO/Roughness/Metalic", device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba8Unorm, viewCount: outTexture.arrayLength)
         // add g-buffer settings
         descriptor = RenderPassEncoderSettings.renderPassDescriptor(texture: outTexture, depthTexture: depthTexture)
+        descriptor.rasterizationRateMap = rasterizationRateMap
         descriptor.colorAttachments[1].texture = gNormalTexture
         descriptor.colorAttachments[1].loadAction = .clear
         descriptor.colorAttachments[1].storeAction = .store

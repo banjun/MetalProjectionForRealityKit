@@ -4,11 +4,24 @@ class CompositePassSetting {
     let state: MTLRenderPipelineState
     let descriptor: MTLRenderPassDescriptor
     let outTexture: any MTLTexture
+    let rasterizationRateMapData: (any MTLBuffer)?
 
-    init(device: any MTLDevice, outTexture: any MTLTexture) {
-        state = RenderPassEncoderSettings.makeRenderPipelineState(device: device, fragmentFunction: "composite_fragment", pixelFormat: outTexture.pixelFormat)
+    init(device: any MTLDevice, outTexture: any MTLTexture, rasterizationRateMap: (any MTLRasterizationRateMap)?) {
+        state = RenderPassEncoderSettings.makeRenderPipelineState(device: device, fragmentFunction: "composite_fragment", fragmentConstants: {
+            let c = MTLFunctionConstantValues()
+            var kUseVRS = rasterizationRateMap != nil
+            c.setConstantValue(&kUseVRS, type: .bool, index: 0)
+            return c
+        }(), pixelFormat: outTexture.pixelFormat)
         descriptor = RenderPassEncoderSettings.renderPassDescriptor(texture: outTexture)
         self.outTexture = outTexture
+
+        if let rasterizationRateMap, let rateMapData = device.makeBuffer(length: rasterizationRateMap.parameterDataSizeAndAlign.size, options: .storageModeShared) {
+            rasterizationRateMap.copyParameterData(buffer: rateMapData, offset: 0)
+            self.rasterizationRateMapData = rateMapData
+        } else {
+            self.rasterizationRateMapData = nil
+        }
     }
 
     func encode(in commandBuffer: any MTLCommandBuffer, inTextures: [(any MTLTexture)?]) {
@@ -29,6 +42,7 @@ class CompositePassSetting {
             }
         }
         encoder.setFragmentBytes(&intensities, length: MemoryLayout<Float>.stride * intensities.count, index: 0)
+        encoder.setFragmentBuffer(rasterizationRateMapData, offset: 0, index: 10)
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: outTexture.arrayLength)
     }
 }

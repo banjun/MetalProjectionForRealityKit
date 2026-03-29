@@ -76,13 +76,20 @@ public final class MetalMap {
     private let copyPass: CopyPassSetting
     private let depthToColorPass: DepthToColorPassSetting
 
+    private let rasterizationRateMap: (any MTLRasterizationRateMap)?
+
     public var dmxHolder: DMXHolder?
 
-    @MainActor public init(device: MTLDevice = MTLCreateSystemDefaultDevice()!, pixelFormat: MTLPixelFormat = .rgba16Float, width: Int = 32, height: Int = 32, viewCount: Int = DeviceDependants.viewCount) {
+    @MainActor public init(device: MTLDevice = MTLCreateSystemDefaultDevice()!, pixelFormat: MTLPixelFormat = .rgba16Float, width: Int = 256, height: Int = 256, viewCount: Int = DeviceDependants.viewCount, rasterizationRateMap: (horizontal: [Float], vertical: [Float])? = nil) {
         commandQueue = device.makeCommandQueue()!
         commandQueue.label = String(describing: type(of: self))
 
-        llTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount, textureUsage: [.renderTarget])) // arrayLength: 2 for left/right eye
+#if DEBUG
+        let llTextureUsage: MTLTextureUsage = [.renderTarget, .shaderRead] // .shaderRead is just for debug. not needed for production
+#else
+        let llTextureUsage: MTLTextureUsage = [.renderTarget]
+#endif
+        llTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount, textureUsage: llTextureUsage)) // arrayLength: 2 for left/right eye
         textureResource = try! .init(from: llTexture)
 
         uniformsTexture = try! LowLevelTexture(descriptor: .init(pixelFormat: .rgba32Float, width: 4, height: 5)) // rgba for 1 row of simd_float4x4, total simd_float4x4 is rgba x 4, thus width = 4, and height 4 for camera center, transformL, transformR, projection0, projection1.
@@ -90,12 +97,25 @@ public final class MetalMap {
         uniformsTextureResource = try! .init(from: uniformsTexture)
         uniformsBuffer = device.makeBuffer(length: MemoryLayout<simd_float4x4>.size * 5)!
 
-        scenePass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount)
+        self.rasterizationRateMap = if let rasterizationRateMap, device.supportsRasterizationRateMap(layerCount: viewCount) {
+            device.makeRasterizationRateMap(descriptor: MTLRasterizationRateMapDescriptor(screenSize: .init(width: width, height: height, depth: 1), layers: Array(repeating: MTLRasterizationRateLayerDescriptor(
+                horizontal: rasterizationRateMap.horizontal,
+                vertical: rasterizationRateMap.vertical,
+            ), count: viewCount)))
+        } else { nil }
+
+        // use physical size converted by rrm
+        NSLog("%@", "logical size: \(width) x \(height)")
+        let width = self.rasterizationRateMap?.physicalSize(layer: 0).width ?? width
+        let height = self.rasterizationRateMap?.physicalSize(layer: 0).height ?? height
+        NSLog("%@", "physical size: \(width) x \(height)")
+
+        scenePass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount, rasterizationRateMap: self.rasterizationRateMap)
         brightPass = .init(device: device, width: width / 2, height: height / 2, pixelFormat: pixelFormat, viewCount: viewCount)
         bloomPass = .init(device: device, width: width / 4, height: height / 4, pixelFormat: pixelFormat, viewCount: viewCount)
         volumeLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, depthTexture: scenePass.depthTexture, viewCount: viewCount)
         surfaceLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, gAlbedoTexture: scenePass.outTexture, gNormalTexture: scenePass.gNormalTexture, gViewPosTexture: scenePass.gViewPosTexture, gORMTexture: scenePass.gORMTexture)
-        compositePass = .init(device: device, outTexture: llTexture.read())
+        compositePass = .init(device: device, outTexture: llTexture.read(), rasterizationRateMap: self.rasterizationRateMap)
 
         debugLLTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount, textureUsage: []))
         debugMetalTexture = debugLLTexture.read()
@@ -233,7 +253,7 @@ public final class MetalMap {
         case .bloom?: if let bloomOut {copyPass.encode(in: commandBuffer, inTexture: bloomOut)}
         case .volumeLight?: blitToDebugTexture(from: volumeLightPass.outTexture)
         case .surfaceLight?: copyPass.encode(in: commandBuffer, inTexture: surfaceLightPass.outTexture)
-        case .composite?: blitToDebugTexture(from: compositePass.outTexture)
+        case .composite?: copyPass.encode(in: commandBuffer, inTexture: compositePass.outTexture)
         }
     }
 

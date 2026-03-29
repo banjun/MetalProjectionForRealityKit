@@ -13,13 +13,13 @@ enum RenderPassEncoderSettings {
         return texture
     }
 
-    static func makeRenderPipelineState(label: String = #file, device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String = "fullscreen_vertex", fragmentFunction: String, pixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
+    static func makeRenderPipelineState(label: String = #file, device: any MTLDevice, library: (any MTLLibrary)? = nil, vertexFunction: String = "fullscreen_vertex", fragmentFunction: String, fragmentConstants: MTLFunctionConstantValues = .init(), pixelFormat: MTLPixelFormat) -> MTLRenderPipelineState {
         let library = library ?? device.makeBundleDebugLibrary()!
         let d = MTLRenderPipelineDescriptor()
         d.label = label
         d.inputPrimitiveTopology = .triangle
         d.vertexFunction = library.makeFunction(name: vertexFunction)!
-        d.fragmentFunction = library.makeFunction(name: fragmentFunction)!
+        d.fragmentFunction = try! library.makeFunction(name: fragmentFunction, constantValues: fragmentConstants)
         d.colorAttachments[0].pixelFormat = pixelFormat
         d.colorAttachments[0].isBlendingEnabled = false
         return try! device.makeRenderPipelineState(descriptor: d)
