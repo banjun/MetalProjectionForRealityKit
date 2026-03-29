@@ -98,10 +98,17 @@ public final class MetalMap {
         uniformsBuffer = device.makeBuffer(length: MemoryLayout<simd_float4x4>.size * 5)!
 
         self.rasterizationRateMap = if let rasterizationRateMap, device.supportsRasterizationRateMap(layerCount: viewCount) {
-            device.makeRasterizationRateMap(descriptor: MTLRasterizationRateMapDescriptor(screenSize: .init(width: width, height: height, depth: 1), layers: Array(repeating: MTLRasterizationRateLayerDescriptor(
-                horizontal: rasterizationRateMap.horizontal,
-                vertical: rasterizationRateMap.vertical,
-            ), count: viewCount)))
+            device.makeRasterizationRateMap(descriptor: MTLRasterizationRateMapDescriptor(screenSize: .init(width: width, height: height, depth: 1), layers: [
+                // assuming viewCount = 2
+                MTLRasterizationRateLayerDescriptor(
+                    horizontal: rasterizationRateMap.horizontal,
+                    vertical: rasterizationRateMap.vertical,
+                ),
+                MTLRasterizationRateLayerDescriptor(
+                    horizontal: rasterizationRateMap.horizontal.reversed(),
+                    vertical: rasterizationRateMap.vertical,
+                )
+            ]))
         } else { nil }
 
         // use physical size converted by rrm

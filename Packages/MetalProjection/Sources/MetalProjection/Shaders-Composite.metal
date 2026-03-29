@@ -15,7 +15,7 @@ half4 composite_fragment(FullscreenIn in [[stage_in]],
     float2 xy = in.position.xy;
     if (kUseVRS) {
         rasterization_rate_map_decoder map(rrmd);
-        xy = map.map_screen_to_physical_coordinates(xy);
+        xy = map.map_screen_to_physical_coordinates(xy, in.vid);
     }
 
     texture2d_array<half> textures[] = {scene, emissive, bloom, volumeLight, surfaceLight};
