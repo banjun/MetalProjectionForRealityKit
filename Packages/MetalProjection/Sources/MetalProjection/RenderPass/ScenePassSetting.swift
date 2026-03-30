@@ -3,7 +3,7 @@ import RealityKit
 import MetalProjectionBridgingHeader
 
 class ScenePassSetting {
-    private let device: any MTLDevice
+    let rateMap: RateMap
     private let state: MTLRenderPipelineState
     private let pipelineDescriptor: MTLRenderPipelineDescriptor
     private let ormState: MTLComputePipelineState
@@ -27,19 +27,19 @@ class ScenePassSetting {
     private var missingFunctions: [String] = []
     private var shaderGraphMaterialPipelineStates: [String: MTLRenderPipelineState] = [:]
 
-    convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat = .depth16Unorm, viewCount: Int, llDescriptor: LowLevelMesh.Descriptor = USDZLowLevelMeshImporter.Vertex.descriptor, rasterizationRateMap: (any MTLRasterizationRateMap)?) {
+    convenience init(rateMap: RateMap, pixelFormat: MTLPixelFormat, depthPixelFormat: MTLPixelFormat = .depth16Unorm, viewCount: Int, llDescriptor: LowLevelMesh.Descriptor = USDZLowLevelMeshImporter.Vertex.descriptor) {
 #if DEBUG
         let usage: MTLTextureUsage = [.renderTarget, .shaderRead] // .shaderRead is just for debug. not needed for production
 #else
         let usage: MTLTextureUsage = [.renderTarget]
 #endif
-        self.init(device: device,
-                  outTexture: RenderPassEncoderSettings.makeTexture("Albedo", device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount),
-                  depthTexture: RenderPassEncoderSettings.makeTexture("Depth", device: device, width: width, height: height, pixelFormat: depthPixelFormat, usage: usage, viewCount: viewCount),
-                  llDescriptor: llDescriptor, rasterizationRateMap: rasterizationRateMap)
+        self.init(rateMap: rateMap, outTexture: RenderPassEncoderSettings.makeTexture("Albedo", device: rateMap.device, width: rateMap.physical.width, height: rateMap.physical.height, pixelFormat: pixelFormat, viewCount: viewCount),
+                  depthTexture: RenderPassEncoderSettings.makeTexture("Depth", device: rateMap.device, width: rateMap.physical.width, height: rateMap.physical.height, pixelFormat: depthPixelFormat, usage: usage, viewCount: viewCount),
+                  llDescriptor: llDescriptor)
     }
-    init(device: any MTLDevice, outTexture: any MTLTexture, depthTexture: any MTLTexture, llDescriptor: LowLevelMesh.Descriptor, rasterizationRateMap: (any MTLRasterizationRateMap)?) {
-        self.device = device
+    init(rateMap: RateMap, outTexture: any MTLTexture, depthTexture: any MTLTexture, llDescriptor: LowLevelMesh.Descriptor) {
+        self.rateMap = rateMap
+        let device = rateMap.device
         self.outTexture = outTexture
         self.depthTexture = depthTexture
         depthStencilState = device.makeDepthStencilState(descriptor: {
@@ -56,7 +56,7 @@ class ScenePassSetting {
         self.gORMTexture = RenderPassEncoderSettings.makeTexture("AO/Roughness/Metalic", device: device, width: outTexture.width, height: outTexture.height, pixelFormat: .rgba8Unorm, viewCount: outTexture.arrayLength)
         // add g-buffer settings
         descriptor = RenderPassEncoderSettings.renderPassDescriptor(texture: outTexture, depthTexture: depthTexture)
-        descriptor.rasterizationRateMap = rasterizationRateMap
+        descriptor.rasterizationRateMap = rateMap.underlyingMap
         descriptor.colorAttachments[1].texture = gNormalTexture
         descriptor.colorAttachments[1].loadAction = .clear
         descriptor.colorAttachments[1].storeAction = .store
@@ -84,6 +84,7 @@ class ScenePassSetting {
     }
 
     @MainActor func encode(in commandBuffer: any MTLCommandBuffer, cameraTransformAndProjections: [(transform: simd_float4x4, projection: simd_float4x4)], entities: [Entity]) {
+        let device = rateMap.device
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { return }
         encoder.label = String(describing: type(of: self))
         defer {encoder.endEncoding()}

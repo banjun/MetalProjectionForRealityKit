@@ -10,7 +10,8 @@ class SurfaceLightPassSetting {
     let gORMTexture: any MTLTexture
     let outTexture: any MTLTexture
 
-    init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, gAlbedoTexture: any MTLTexture, gNormalTexture: any MTLTexture, gViewPosTexture: any MTLTexture, gORMTexture: any MTLTexture) {
+    init(rateMap: RateMap, pixelFormat: MTLPixelFormat, gAlbedoTexture: any MTLTexture, gNormalTexture: any MTLTexture, gViewPosTexture: any MTLTexture, gORMTexture: any MTLTexture) {
+        let device = rateMap.device
         let library = device.makeBundleDebugLibrary()!
         let downsampleFactor: Int
 #if targetEnvironment(simulator)
@@ -18,7 +19,8 @@ class SurfaceLightPassSetting {
 #else
         downsampleFactor = 1
 #endif
-        let outTexture = RenderPassEncoderSettings.makeTexture(device: device, width: width / downsampleFactor, height: height / downsampleFactor, pixelFormat: pixelFormat, viewCount: gNormalTexture.arrayLength)
+        let rateMap = rateMap / downsampleFactor
+        let outTexture = RenderPassEncoderSettings.makeTexture(device: device, width: rateMap.physical.width, height: rateMap.physical.height, pixelFormat: pixelFormat, viewCount: gNormalTexture.arrayLength)
 
         let d = MTLRenderPipelineDescriptor()
         d.label = #file

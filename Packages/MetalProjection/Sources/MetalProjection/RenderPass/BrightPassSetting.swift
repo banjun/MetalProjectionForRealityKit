@@ -5,12 +5,12 @@ class BrightPassSetting {
     let descriptor: MTLRenderPassDescriptor
     let outTexture: any MTLTexture
 
-    convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, viewCount: Int) {
-        self.init(device: device,
-                  outTexture: RenderPassEncoderSettings.makeTexture(device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount))
+    convenience init(rateMap: RateMap, pixelFormat: MTLPixelFormat, viewCount: Int) {
+        self.init(rateMap: rateMap,
+                  outTexture: RenderPassEncoderSettings.makeTexture(device: rateMap.device, width: rateMap.physical.width, height: rateMap.physical.height, pixelFormat: pixelFormat, viewCount: viewCount))
     }
-    init(device: any MTLDevice, outTexture: any MTLTexture) {
-        state = RenderPassEncoderSettings.makeRenderPipelineState(device: device, fragmentFunction: "bright_fragment", pixelFormat: outTexture.pixelFormat)
+    init(rateMap: RateMap, outTexture: any MTLTexture) {
+        state = RenderPassEncoderSettings.makeRenderPipelineState(device: rateMap.device, fragmentFunction: "bright_fragment", pixelFormat: outTexture.pixelFormat)
         descriptor = RenderPassEncoderSettings.renderPassDescriptor(texture: outTexture)
         self.outTexture = outTexture
     }

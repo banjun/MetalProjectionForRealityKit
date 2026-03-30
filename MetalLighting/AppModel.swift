@@ -28,9 +28,14 @@ class AppModel {
         }
     }
 
-    let metalMap = MetalMap(width: 4096, height: 4096,
-                            rasterizationRateMap: (horizontal: [0.01, 0.01, 0.1, 1, 0.7, 0.1, 0.01],
-                                                   vertical: [0.01, 0.01, 0.1, 1, 0.1, 0.01, 0.01]))
+    #if targetEnvironment(simulator)
+    let metalMap = MetalMap(width: 1024, height: 1024)
+    #else
+    let metalMap = MetalMap(
+        width: 4096, height: 4096,
+        rasterizationRateMap: (horizontal: [0.01, 0.01, 0.1, 1, 0.7, 0.1, 0.01],
+                               vertical: [0.01, 0.01, 0.1, 1, 0.1, 0.01, 0.01]))
+    #endif
     var dmxHolder: DMXHolder? {
         didSet {
             oldValue?.stop()

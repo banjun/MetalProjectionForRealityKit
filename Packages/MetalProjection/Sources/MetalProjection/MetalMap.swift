@@ -76,7 +76,7 @@ public final class MetalMap {
     private let copyPass: CopyPassSetting
     private let depthToColorPass: DepthToColorPassSetting
 
-    private let rasterizationRateMap: (any MTLRasterizationRateMap)?
+    private let rateMap: RateMap
 
     public var dmxHolder: DMXHolder?
 
@@ -97,8 +97,7 @@ public final class MetalMap {
         uniformsTextureResource = try! .init(from: uniformsTexture)
         uniformsBuffer = device.makeBuffer(length: MemoryLayout<simd_float4x4>.size * 5)!
 
-        self.rasterizationRateMap = if let rasterizationRateMap, device.supportsRasterizationRateMap(layerCount: viewCount) {
-            device.makeRasterizationRateMap(descriptor: MTLRasterizationRateMapDescriptor(screenSize: .init(width: width, height: height, depth: 1), layers: [
+        let rasterizationRateMapDescriptor = if let rasterizationRateMap { MTLRasterizationRateMapDescriptor(screenSize: .init(width: width, height: height, depth: 1), layers: [
                 // assuming viewCount = 2
                 MTLRasterizationRateLayerDescriptor(
                     horizontal: rasterizationRateMap.horizontal,
@@ -108,23 +107,22 @@ public final class MetalMap {
                     horizontal: rasterizationRateMap.horizontal.reversed(),
                     vertical: rasterizationRateMap.vertical,
                 )
-            ]))
-        } else { nil }
+            ])
+        } else { MTLRasterizationRateMapDescriptor?.none }
 
         // use physical size converted by rrm
         NSLog("%@", "logical size: \(width) x \(height)")
-        let width = self.rasterizationRateMap?.physicalSize(layer: 0).width ?? width
-        let height = self.rasterizationRateMap?.physicalSize(layer: 0).height ?? height
-        NSLog("%@", "physical size: \(width) x \(height)")
+        rateMap = RateMap(logicalWidth: width, height: height, device: device, descriptor: rasterizationRateMapDescriptor)
+        NSLog("%@", "physical size: \(rateMap.physical)")
 
-        scenePass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount, rasterizationRateMap: self.rasterizationRateMap)
-        brightPass = .init(device: device, width: width / 2, height: height / 2, pixelFormat: pixelFormat, viewCount: viewCount)
-        bloomPass = .init(device: device, width: width / 4, height: height / 4, pixelFormat: pixelFormat, viewCount: viewCount)
-        volumeLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, depthTexture: scenePass.depthTexture, viewCount: viewCount)
-        surfaceLightPass = .init(device: device, width: width, height: height, pixelFormat: pixelFormat, gAlbedoTexture: scenePass.outTexture, gNormalTexture: scenePass.gNormalTexture, gViewPosTexture: scenePass.gViewPosTexture, gORMTexture: scenePass.gORMTexture)
-        compositePass = .init(device: device, outTexture: llTexture.read(), rasterizationRateMap: self.rasterizationRateMap)
+        scenePass = .init(rateMap: rateMap, pixelFormat: pixelFormat, viewCount: viewCount)
+        brightPass = .init(rateMap: rateMap / 2, pixelFormat: pixelFormat, viewCount: viewCount)
+        bloomPass = .init(rateMap: rateMap / 4, pixelFormat: pixelFormat, viewCount: viewCount)
+        volumeLightPass = .init(device: device, width: rateMap.physical.width, height: rateMap.physical.height, pixelFormat: pixelFormat, depthTexture: scenePass.depthTexture, viewCount: viewCount)
+        surfaceLightPass = .init(rateMap: rateMap, pixelFormat: pixelFormat, gAlbedoTexture: scenePass.outTexture, gNormalTexture: scenePass.gNormalTexture, gViewPosTexture: scenePass.gViewPosTexture, gORMTexture: scenePass.gORMTexture)
+        compositePass = .init(rateMap: rateMap, outTexture: llTexture.read())
 
-        debugLLTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount, textureUsage: []))
+        debugLLTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: rateMap.physical.width, height: rateMap.physical.height, arrayLength: viewCount, textureUsage: []))
         debugMetalTexture = debugLLTexture.read()
         debugTextureResource = try! .init(from: debugLLTexture)
         copyPass = .init(device: device, outTexture: debugMetalTexture)
@@ -135,9 +133,9 @@ public final class MetalMap {
     private var deviceAnchorHistory: [DeviceAnchor] = []
 
     @MainActor func draw(_ entities: [Entity]) {
-//        let now = Date()
-//        guard now.timeIntervalSince(lastDraw) > (1.0 / 90) else { return }
-//        lastDraw = now
+        //        let now = Date()
+        //        guard now.timeIntervalSince(lastDraw) > (1.0 / 90) else { return }
+        //        lastDraw = now
 
         guard let worldTracker else {
             let arkitSession = ARKitSession()
@@ -148,7 +146,7 @@ public final class MetalMap {
             return
         }
         guard let deviceAnchorPredicted = worldTracker.queryDeviceAnchor(atTimestamp: CACurrentMediaTime() + 0.010) else { return }
-        #if targetEnvironment(simulator)
+#if targetEnvironment(simulator)
         deviceAnchorHistory.append(deviceAnchorPredicted)
         let deviceAnchorTransform = deviceAnchorHistory.count < 8 ? deviceAnchorPredicted.originFromAnchorTransform : {
             let late = deviceAnchorHistory.removeFirst()
@@ -156,9 +154,9 @@ public final class MetalMap {
             t.columns.3 = late.originFromAnchorTransform.columns.3
             return t
         }()
-        #else
+#else
         let deviceAnchorTransform = deviceAnchorPredicted.originFromAnchorTransform
-        #endif
+#endif
         guard let commandBuffer = commandQueue.makeCommandBuffer() else { return }
         defer {commandBuffer.commit()}
 
@@ -228,7 +226,7 @@ public final class MetalMap {
 
         scenePass.encode(in: commandBuffer, cameraTransformAndProjections: cameraTransformAndProjections, entities: entities)
         let bloomOut: (any MTLTexture)? = isBloomEnabled ? {
-//            brightPass.encode(in: commandBuffer, inTexture: scenePass.gEmissiveTexture)
+            //            brightPass.encode(in: commandBuffer, inTexture: scenePass.gEmissiveTexture)
             return bloomPass.encode(in: commandBuffer, inTexture: scenePass.gEmissiveTexture)
         }() : nil
         volumeLightPass.encode(in: commandBuffer, uniforms: uniforms, lights: lights, intensity: volumeLightBaseIntensity)
@@ -253,13 +251,13 @@ public final class MetalMap {
         switch debugBlit {
         case .none: break
         case .scene?: blitToDebugTexture(from: scenePass.outTexture)
-        case .normal?: copyPass.encode(in: commandBuffer, inTexture: scenePass.gNormalTexture)
-        case .emissive?: copyPass.encode(in: commandBuffer, inTexture: scenePass.gEmissiveTexture)
+        case .normal?: copyPass.encode(in: commandBuffer, inTexture:  scenePass.gNormalTexture)
+        case .emissive?: blitToDebugTexture(from: scenePass.gEmissiveTexture)
         case .depth?: depthToColorPass.encode(in: commandBuffer, inTexture: scenePass.depthTexture)
         case .bright?: copyPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
         case .bloom?: if let bloomOut {copyPass.encode(in: commandBuffer, inTexture: bloomOut)}
         case .volumeLight?: blitToDebugTexture(from: volumeLightPass.outTexture)
-        case .surfaceLight?: copyPass.encode(in: commandBuffer, inTexture: surfaceLightPass.outTexture)
+        case .surfaceLight?: blitToDebugTexture(from: surfaceLightPass.outTexture)
         case .composite?: copyPass.encode(in: commandBuffer, inTexture: compositePass.outTexture)
         }
     }
