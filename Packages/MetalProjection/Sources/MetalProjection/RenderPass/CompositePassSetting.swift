@@ -23,7 +23,7 @@ class CompositePassSetting {
         var viewCount = outTexture.arrayLength
         encoder.setVertexBytes(&viewCount, length: MemoryLayout.stride(ofValue: viewCount), index: 1)
 
-        var intensities: [Float] = [0, 0.25, 1, 1, 2]
+        var intensities: [Float] = [1, 1, 1, 1]
         inTextures.enumerated().forEach { i, inTexture in
             if let inTexture {
                 encoder.setFragmentTexture(inTexture, index: i)

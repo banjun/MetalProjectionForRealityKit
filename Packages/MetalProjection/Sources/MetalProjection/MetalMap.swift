@@ -231,7 +231,7 @@ public final class MetalMap {
         }() : nil
         volumeLightPass.encode(in: commandBuffer, uniforms: uniforms, lights: lights, intensity: volumeLightBaseIntensity)
         surfaceLightPass.encode(in: commandBuffer, uniforms: uniforms, lightsBuffer: volumeLightPass.lightsBuffer, lightsCount: lights.count, imageBasedLight: imageBasedLightTexture, intensity: surfaceLightBaseIntensity)
-        compositePass.encode(in: commandBuffer, inTextures: [scenePass.outTexture, scenePass.gEmissiveTexture, bloomOut, volumeLightPass.outTexture, surfaceLightPass.outTexture])
+        compositePass.encode(in: commandBuffer, inTextures: [scenePass.gEmissiveTexture, bloomOut, volumeLightPass.outTexture, surfaceLightPass.outTexture])
 
         if let blit = commandBuffer.makeBlitCommandEncoder() {
             defer {blit.endEncoding()}
