@@ -86,19 +86,6 @@ public final class MetalMap {
         commandQueue = device.makeCommandQueue()!
         commandQueue.label = String(describing: type(of: self))
 
-#if DEBUG
-        let llTextureUsage: MTLTextureUsage = [.renderTarget, .shaderRead] // .shaderRead is just for debug. not needed for production
-#else
-        let llTextureUsage: MTLTextureUsage = [.renderTarget]
-#endif
-        llTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: width, height: height, arrayLength: viewCount, textureUsage: llTextureUsage)) // arrayLength: 2 for left/right eye
-        textureResource = try! .init(from: llTexture)
-
-        uniformsTexture = try! LowLevelTexture(descriptor: .init(pixelFormat: .rgba32Float, width: 4, height: 5)) // rgba for 1 row of simd_float4x4, total simd_float4x4 is rgba x 4, thus width = 4, and height 4 for camera center, transformL, transformR, projection0, projection1.
-        uniformsMetalTexture = uniformsTexture.read()
-        uniformsTextureResource = try! .init(from: uniformsTexture)
-        uniformsBuffer = device.makeBuffer(length: MemoryLayout<simd_float4x4>.size * 5)!
-
         let rasterizationRateMapDescriptor = if let rasterizationRateMap { MTLRasterizationRateMapDescriptor(screenSize: .init(width: width, height: height, depth: 1), layers: [
                 // assuming viewCount = 2
                 MTLRasterizationRateLayerDescriptor(
@@ -117,6 +104,18 @@ public final class MetalMap {
         let rateMap = RateMap(logicalWidth: width, height: height, device: device, descriptor: rasterizationRateMapDescriptor)
         self.rateMap = rateMap
         NSLog("%@", "physical size: \(rateMap.physical)")
+#if DEBUG
+        let llTextureUsage: MTLTextureUsage = [.renderTarget, .shaderRead] // .shaderRead is just for debug. not needed for production
+#else
+        let llTextureUsage: MTLTextureUsage = [.renderTarget]
+#endif
+        llTexture = try! LowLevelTexture(descriptor: .init(textureType: .type2DArray, pixelFormat: pixelFormat, width: rateMap.physical.width, height: rateMap.physical.height, arrayLength: viewCount, textureUsage: llTextureUsage)) // arrayLength: 2 for left/right eye
+        textureResource = try! .init(from: llTexture)
+
+        uniformsTexture = try! LowLevelTexture(descriptor: .init(pixelFormat: .rgba32Float, width: 4, height: 5)) // rgba for 1 row of simd_float4x4, total simd_float4x4 is rgba x 4, thus width = 4, and height 4 for camera center, transformL, transformR, projection0, projection1.
+        uniformsMetalTexture = uniformsTexture.read()
+        uniformsTextureResource = try! .init(from: uniformsTexture)
+        uniformsBuffer = device.makeBuffer(length: MemoryLayout<simd_float4x4>.size * 5)!
 
         scenePass = .init(rateMap: rateMap, pixelFormat: pixelFormat, viewCount: viewCount)
         brightPass = .init(rateMap: rateMap / 2, pixelFormat: pixelFormat, viewCount: viewCount)

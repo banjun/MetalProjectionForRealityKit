@@ -14,7 +14,7 @@ half4 composite_fragment(FullscreenIn in [[stage_in]],
                                            address::clamp_to_zero);
     auto xy = in.position.xy;
     auto uv = in.uv;
-    if (kUseVRS) {
+    if (kUseVRS && 0) {
         rasterization_rate_map_decoder map(rrmd);
         xy = map.map_screen_to_physical_coordinates(xy, in.vid);
         uv = xy / float2(emissive.get_width(), emissive.get_height());

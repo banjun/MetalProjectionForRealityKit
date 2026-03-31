@@ -35,6 +35,15 @@ public extension SGVector {
         let uv = (ndc + 1) / 2
         return uv
     }
+    static func physicalUV(screenUV: SGVector, lut: SGTexture) -> SGVector {
+        lut.image2DArrayVector4(
+            index: ShaderGraphCoder.geometrySwitchCameraIndex(mono: .int(0), left: .int(0), right: .int(1)),
+            defaultValue: .vector4f(screenUV.x, screenUV.y, .zero, .one),
+            texcoord: screenUV,
+            magFilter: .linear,
+            minFilter: .linear,            
+        ).xy
+    }
 }
 public extension SGMatrix {
     static func decodeTexturePixel(texture: SGTexture, offset: SGVector, stride: SGVector = .vector2f(1, 0)) -> SGMatrix {

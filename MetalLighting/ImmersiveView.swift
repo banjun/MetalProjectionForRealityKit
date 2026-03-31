@@ -117,19 +117,20 @@ struct ImmersiveView: View {
                     }
                     return geometrySwitchCameraIndex(mono: image(0), left: image(0), right: image(1))
                 }
-                @MainActor func projectedMap() -> SGColor {
-                    projectedMap(textureArray: .texture(metalMap.textureResource), uv: screenUV())
+                @MainActor func projectedMap(screenToPhysicalLUT lut: SGTexture?) -> SGColor {
+                    projectedMap(textureArray: .texture(metalMap.textureResource),
+                                 uv: lut.map {.physicalUV(screenUV: screenUV(), lut: $0)} ?? screenUV())
                 }
 
-                @MainActor func screenMaterial() async -> ShaderGraphMaterial {
-                    let mapValue = projectedMap()
+                @MainActor func screenMaterial(screenToPhysicalLUT lut: SGTexture? = nil) async -> ShaderGraphMaterial {
+                    let mapValue = projectedMap(screenToPhysicalLUT: lut)
                     //                    var m = try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb, opacity: .zero, applyPostProcessToneMap: false, hasPremultipliedAlpha: true))
                     var m = try! await ShaderGraphMaterial(surface: unlitSurface(color: mapValue.rgb, opacity: mapValue.a, applyPostProcessToneMap: false, hasPremultipliedAlpha: false))
                     m.faceCulling = .front
                     return m
                 }
                 @MainActor func screenSphere(radius: Float) async -> Entity {
-                    let sphere = ModelEntity(mesh: .generateSphere(radius: radius), materials: [await screenMaterial()])
+                    let sphere = ModelEntity(mesh: .generateSphere(radius: radius), materials: [await screenMaterial(screenToPhysicalLUT: metalMap.rateMapDecodeTextureResource.map {.texture($0)})])
                     // model sort group could be used to invert depth order?
                     sphere.components.set(ModelSortGroupComponent(group: modelSortGroup, order: 999))
                     return sphere
