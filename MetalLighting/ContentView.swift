@@ -12,6 +12,7 @@ import MetalProjection
 
 struct ContentView: View {
     @Environment(AppModel.self) private var appModel
+    @Environment(\.openImmersiveSpace) private var openImmersiveSpace
     var metalMap: MetalMap {appModel.metalMap}
 
     var body: some View {
@@ -46,7 +47,7 @@ struct ContentView: View {
                 .pickerStyle(.palette)
 
                 switch metalMap.debugBlit {
-                case .bright, .bloom:
+                case .bloom:
                     Toggle("Bloom", isOn: .init(get: {metalMap.isBloomEnabled}, set: {metalMap.isBloomEnabled = $0})).toggleStyle(.button)
                 case .volumeLight, .surfaceLight:
                     HStack {
@@ -76,6 +77,9 @@ struct ContentView: View {
             }
             .padding()
             .glassBackgroundEffect()
+        }
+        .onAppear {
+            Task.immediate {await openImmersiveSpace(id: appModel.immersiveSpaceID)}
         }
     }
 }

@@ -68,15 +68,17 @@ public final class MetalMap {
     private let debugLLTexture: LowLevelTexture
     private let debugMetalTexture: any MTLTexture
     public let debugTextureResource: TextureResource
-    public var debugBlit: DebugBlit? = .surfaceLight
+    public var debugBlit: DebugBlit? = .rate
     public enum DebugBlit: String, Hashable, Identifiable, CaseIterable {
-        case scene, normal, emissive, depth, bright, bloom, volumeLight, surfaceLight, composite
+        case scene, normal, emissive, depth, bloom, volumeLight, surfaceLight, rate, composite
         public var id: String {rawValue}
     }
     private let copyPass: CopyPassSetting
     private let depthToColorPass: DepthToColorPassSetting
 
     private let rateMap: RateMap
+    private let rateMapDecodeTexture: RateMapDecodeTexture?
+    public var rateMapDecodeTextureResource: TextureResource? {rateMapDecodeTexture?.textureResource}
 
     public var dmxHolder: DMXHolder?
 
@@ -112,7 +114,8 @@ public final class MetalMap {
 
         // use physical size converted by rrm
         NSLog("%@", "logical size: \(width) x \(height)")
-        rateMap = RateMap(logicalWidth: width, height: height, device: device, descriptor: rasterizationRateMapDescriptor)
+        let rateMap = RateMap(logicalWidth: width, height: height, device: device, descriptor: rasterizationRateMapDescriptor)
+        self.rateMap = rateMap
         NSLog("%@", "physical size: \(rateMap.physical)")
 
         scenePass = .init(rateMap: rateMap, pixelFormat: pixelFormat, viewCount: viewCount)
@@ -127,6 +130,8 @@ public final class MetalMap {
         debugTextureResource = try! .init(from: debugLLTexture)
         copyPass = .init(device: device, outTexture: debugMetalTexture)
         depthToColorPass = .init(device: device, outTexture: debugMetalTexture)
+
+        rateMapDecodeTexture = rateMap.underlyingMap.map {_ in RateMapDecodeTexture(rateMap: rateMap)}
     }
 
     private var lastDraw: Date = .distantPast
@@ -233,6 +238,8 @@ public final class MetalMap {
         surfaceLightPass.encode(in: commandBuffer, uniforms: uniforms, lightsBuffer: volumeLightPass.lightsBuffer, lightsCount: lights.count, imageBasedLight: imageBasedLightTexture, intensity: surfaceLightBaseIntensity)
         compositePass.encode(in: commandBuffer, inTextures: [scenePass.gEmissiveTexture, bloomOut, volumeLightPass.outTexture, surfaceLightPass.outTexture])
 
+        rateMapDecodeTexture?.drawIfNeeded(in: commandBuffer)
+
         if let blit = commandBuffer.makeBlitCommandEncoder() {
             defer {blit.endEncoding()}
             withUnsafeBytes(of: &uniforms) { u in
@@ -251,13 +258,14 @@ public final class MetalMap {
         switch debugBlit {
         case .none: break
         case .scene?: blitToDebugTexture(from: scenePass.outTexture)
-        case .normal?: copyPass.encode(in: commandBuffer, inTexture:  scenePass.gNormalTexture)
+        case .normal?: copyPass.encode(in: commandBuffer, inTexture: scenePass.gNormalTexture)
         case .emissive?: blitToDebugTexture(from: scenePass.gEmissiveTexture)
         case .depth?: depthToColorPass.encode(in: commandBuffer, inTexture: scenePass.depthTexture)
-        case .bright?: copyPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
+//        case .bright?: copyPass.encode(in: commandBuffer, inTexture: brightPass.outTexture)
         case .bloom?: if let bloomOut {copyPass.encode(in: commandBuffer, inTexture: bloomOut)}
         case .volumeLight?: blitToDebugTexture(from: volumeLightPass.outTexture)
         case .surfaceLight?: blitToDebugTexture(from: surfaceLightPass.outTexture)
+        case .rate?: if let rateMapDecodeTexture {copyPass.encode(in: commandBuffer, inTexture: rateMapDecodeTexture.mtlTexture)}
         case .composite?: copyPass.encode(in: commandBuffer, inTexture: compositePass.outTexture)
         }
     }
