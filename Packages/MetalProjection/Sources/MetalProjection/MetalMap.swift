@@ -51,8 +51,11 @@ public final class MetalMap {
     private let surfaceLightPass: SurfaceLightPassSetting
     private let compositePass: CompositePassSetting
 
-    public var isBloomEnabled: Bool = false
-    public var isMainLightsEnabled: Bool = true
+    public var isBloomEnabled: Bool = true
+    public var bloomIntensity: Float = 0.5
+    public var bloomSpread: Float = 1.0
+    public var bloomSteps: Int = 4
+    public var isMainLightsEnabled: Bool = false
     public var isLineLights1Enabled: Bool = false
     public var isLineLights2Enabled: Bool = false
     public var isLineLights3Enabled: Bool = false
@@ -68,7 +71,7 @@ public final class MetalMap {
     private let debugLLTexture: LowLevelTexture
     private let debugMetalTexture: any MTLTexture
     public let debugTextureResource: TextureResource
-    public var debugBlit: DebugBlit? = .rate
+    public var debugBlit: DebugBlit? = .bloom
     public enum DebugBlit: String, Hashable, Identifiable, CaseIterable {
         case scene, normal, emissive, depth, bloom, volumeLight, surfaceLight, rate, composite
         public var id: String {rawValue}
@@ -231,7 +234,7 @@ public final class MetalMap {
         scenePass.encode(in: commandBuffer, cameraTransformAndProjections: cameraTransformAndProjections, entities: entities)
         let bloomOut: (any MTLTexture)? = isBloomEnabled ? {
             //            brightPass.encode(in: commandBuffer, inTexture: scenePass.gEmissiveTexture)
-            return bloomPass.encode(in: commandBuffer, inTexture: scenePass.gEmissiveTexture)
+            return bloomPass.encode(in: commandBuffer, inTexture: scenePass.gEmissiveTexture, intensity: bloomIntensity, spread: bloomSpread, steps: bloomSteps)
         }() : nil
         volumeLightPass.encode(in: commandBuffer, uniforms: uniforms, lights: lights, intensity: volumeLightBaseIntensity)
         surfaceLightPass.encode(in: commandBuffer, uniforms: uniforms, lightsBuffer: volumeLightPass.lightsBuffer, lightsCount: lights.count, imageBasedLight: imageBasedLightTexture, intensity: surfaceLightBaseIntensity)

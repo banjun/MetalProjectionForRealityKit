@@ -48,7 +48,30 @@ struct ContentView: View {
 
                 switch metalMap.debugBlit {
                 case .bloom:
-                    Toggle("Bloom", isOn: .init(get: {metalMap.isBloomEnabled}, set: {metalMap.isBloomEnabled = $0})).toggleStyle(.button)
+                    HStack {
+                        Toggle("Bloom", isOn: .init(get: {metalMap.isBloomEnabled}, set: {metalMap.isBloomEnabled = $0})).toggleStyle(.button)
+                        Divider().padding()
+                        VStack {
+                            @Bindable var metalMap = metalMap
+                            HStack {
+                                Text("Steps")
+                                Picker("Steps", selection: $metalMap.bloomSteps) {
+                                    ForEach([1, 2, 4, 8, 16], id: \.self) { s in
+                                        Text("\(s)").tag(s)
+                                    }
+                                }
+                                .pickerStyle(.palette)
+                            }
+                            HStack {
+                                Text("Intensity = \(metalMap.bloomIntensity, format: .number.precision(.fractionLength(3)))")
+                                Slider(value: $metalMap.bloomIntensity, in: 0...10)
+                            }
+                            HStack {
+                                Text("Spread = \(metalMap.bloomSpread, format: .number.precision(.fractionLength(3)))")
+                                Slider(value: $metalMap.bloomSpread, in: 0.01...2)
+                            }
+                        }
+                    }
                 case .volumeLight, .surfaceLight:
                     HStack {
                         Toggle("DMX", isOn: .init(get: {appModel.useDMX}, set: {appModel.useDMX = $0})).toggleStyle(.button)
