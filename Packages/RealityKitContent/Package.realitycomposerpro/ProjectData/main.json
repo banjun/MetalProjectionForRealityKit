@@ -1,32 +1,11 @@
 {
   "pathsToIds" : {
-    "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/CenterStage.usda" : "DD584E7A-AF50-469C-A2F5-11C9B97DB682",
-    "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Floor.usda" : "2B859176-D84E-4B27-AF85-F86A8580D68F",
     "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/GridMaterial.usda" : "CB766F92-EE55-4A63-9401-E7B8C009764D",
     "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Immersive.usda" : "65F6F990-A780-4474-B78B-572E0E4E273D",
-    "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Pillars.usda" : "429633A9-0549-42F7-AC69-B07B72111C65",
     "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Scene.usda" : "0A9B4653-B11E-4D6A-850E-C6FCB621626C",
     "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Untitled Scene.usda" : "D560BB77-AAF3-4BDE-B7C4-989332A4688B",
-    "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/groovot.usda" : "E29A622C-2177-4BED-A2F7-6F7AEA4C27BA",
-    "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/CenterStage.usda" : "1937B4B9-3979-409E-88BA-79C671D5FD76",
-    "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Floor.usda" : "52C2D577-42B9-4F08-89D4-490C594CE053",
     "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/GridMaterial.usda" : "66168B71-AB05-424E-8B6C-D33D6E61B08F",
     "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Immersive.usda" : "AF09ED6F-1707-48FD-8720-65B998362C09",
-    "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Pillars.usda" : "3EEF8A8A-085D-4AC1-A60D-A3A6092D0EAF",
-    "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Scene.usda" : "D66134B1-3681-4A8E-AFE5-29F257229F3B",
-    "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/groovot.usda" : "72000859-5C48-4CB9-AB70-D0FB0B2C1323"
-  },
-  "projectID" : 6175062419212706279,
-  "uuidToIntID" : {
-    "1937B4B9-3979-409E-88BA-79C671D5FD76" : -6814675553900763416,
-    "2B859176-D84E-4B27-AF85-F86A8580D68F" : -9212537857612797618,
-    "3EEF8A8A-085D-4AC1-A60D-A3A6092D0EAF" : -2829787103561196260,
-    "429633A9-0549-42F7-AC69-B07B72111C65" : -4045571970238986190,
-    "52C2D577-42B9-4F08-89D4-490C594CE053" : -5332375917590127295,
-    "72000859-5C48-4CB9-AB70-D0FB0B2C1323" : 3652759729243740969,
-    "AF09ED6F-1707-48FD-8720-65B998362C09" : -147839471872242376,
-    "D66134B1-3681-4A8E-AFE5-29F257229F3B" : 8953095871766394485,
-    "DD584E7A-AF50-469C-A2F5-11C9B97DB682" : -7844275569297362124,
-    "E29A622C-2177-4BED-A2F7-6F7AEA4C27BA" : 3530463965844905646
+    "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Scene.usda" : "D66134B1-3681-4A8E-AFE5-29F257229F3B"
   }
 }

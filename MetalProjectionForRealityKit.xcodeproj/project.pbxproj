@@ -12,6 +12,9 @@
 		EA22AC832F01730000C5F1D2 /* MetalProjection in Frameworks */ = {isa = PBXBuildFile; productRef = EA22AC822F01730000C5F1D2 /* MetalProjection */; };
 		EA5C5BA32F2E54E00096EACA /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = EA5C5BA22F2E54E00096EACA /* RealityKitContent */; };
 		EA7F78182ED486EE00459707 /* ShaderGraphCoder in Frameworks */ = {isa = PBXBuildFile; productRef = EA7F78172ED486EE00459707 /* ShaderGraphCoder */; };
+		EAFD1DC92FAB765A00B65DB4 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = EAFD1DC82FAB765A00B65DB4 /* RealityKitContent */; };
+		EAFD1DDC2FAB768D00B65DB4 /* MetalProjection in Frameworks */ = {isa = PBXBuildFile; productRef = EAFD1DDB2FAB768D00B65DB4 /* MetalProjection */; };
+		EAFD1DDE2FAB769100B65DB4 /* ShaderGraphCoder in Frameworks */ = {isa = PBXBuildFile; productRef = EAFD1DDD2FAB769100B65DB4 /* ShaderGraphCoder */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -20,6 +23,7 @@
 		EA20CC6E2EB8B4E000555555 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 		EA22AC812F0171F600C5F1D2 /* MetalProjection */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = MetalProjection; sourceTree = "<group>"; };
 		EAE2D4732F169DFA00B8CED3 /* DMX */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = DMX; path = ../DMX; sourceTree = SOURCE_ROOT; };
+		EAFD1DC62FAB765A00B65DB4 /* Skinning.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Skinning.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -36,6 +40,20 @@
 				Info.plist,
 			);
 			target = EA20CC692EB8B4E000555555 /* MetalProjectionForRealityKit */;
+		};
+		EAFD1DD52FAB765B00B65DB4 /* Exceptions for "Skinning" folder in "Skinning" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = EAFD1DC52FAB765A00B65DB4 /* Skinning */;
+		};
+		EAFD1DE02FAB77FC00B65DB4 /* Exceptions for "MetalLighting" folder in "Skinning" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"ありす4.usdz",
+			);
+			target = EAFD1DC52FAB765A00B65DB4 /* Skinning */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -55,6 +73,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				EA10E7942ED4651000E3CCD0 /* Exceptions for "MetalLighting" folder in "MetalLighting" target */,
+				EAFD1DE02FAB77FC00B65DB4 /* Exceptions for "MetalLighting" folder in "Skinning" target */,
 			);
 			path = MetalLighting;
 			sourceTree = "<group>";
@@ -66,6 +85,14 @@
 				EA00AB4E2EB8D70E0025B081 /* Exceptions for "MetalProjectionForRealityKit" folder in "Compile Sources" phase from "MetalProjectionForRealityKit" target */,
 			);
 			path = MetalProjectionForRealityKit;
+			sourceTree = "<group>";
+		};
+		EAFD1DC72FAB765A00B65DB4 /* Skinning */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EAFD1DD52FAB765B00B65DB4 /* Exceptions for "Skinning" folder in "Skinning" target */,
+			);
+			path = Skinning;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -90,6 +117,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EAFD1DC32FAB765A00B65DB4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EAFD1DDE2FAB769100B65DB4 /* ShaderGraphCoder in Frameworks */,
+				EAFD1DC92FAB765A00B65DB4 /* RealityKitContent in Frameworks */,
+				EAFD1DDC2FAB768D00B65DB4 /* MetalProjection in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -99,6 +136,7 @@
 				EA20CC6C2EB8B4E000555555 /* MetalProjectionForRealityKit */,
 				EA20CC6D2EB8B4E000555555 /* Packages */,
 				EA10E7862ED4650E00E3CCD0 /* MetalLighting */,
+				EAFD1DC72FAB765A00B65DB4 /* Skinning */,
 				EA7F78162ED486EE00459707 /* Frameworks */,
 				EAE2D4732F169DFA00B8CED3 /* DMX */,
 				EA20CC6B2EB8B4E000555555 /* Products */,
@@ -110,6 +148,7 @@
 			children = (
 				EA20CC6A2EB8B4E000555555 /* MetalProjectionForRealityKit.app */,
 				EA10E7852ED4650E00E3CCD0 /* MetalLighting.app */,
+				EAFD1DC62FAB765A00B65DB4 /* Skinning.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -182,6 +221,31 @@
 			productReference = EA20CC6A2EB8B4E000555555 /* MetalProjectionForRealityKit.app */;
 			productType = "com.apple.product-type.application";
 		};
+		EAFD1DC52FAB765A00B65DB4 /* Skinning */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EAFD1DD62FAB765B00B65DB4 /* Build configuration list for PBXNativeTarget "Skinning" */;
+			buildPhases = (
+				EAFD1DC22FAB765A00B65DB4 /* Sources */,
+				EAFD1DC32FAB765A00B65DB4 /* Frameworks */,
+				EAFD1DC42FAB765A00B65DB4 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				EAFD1DC72FAB765A00B65DB4 /* Skinning */,
+			);
+			name = Skinning;
+			packageProductDependencies = (
+				EAFD1DC82FAB765A00B65DB4 /* RealityKitContent */,
+				EAFD1DDB2FAB768D00B65DB4 /* MetalProjection */,
+				EAFD1DDD2FAB769100B65DB4 /* ShaderGraphCoder */,
+			);
+			productName = Skinning;
+			productReference = EAFD1DC62FAB765A00B65DB4 /* Skinning.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -189,7 +253,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2620;
+				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 2610;
 				TargetAttributes = {
 					EA10E7842ED4650E00E3CCD0 = {
@@ -197,6 +261,9 @@
 					};
 					EA20CC692EB8B4E000555555 = {
 						CreatedOnToolsVersion = 26.1;
+					};
+					EAFD1DC52FAB765A00B65DB4 = {
+						CreatedOnToolsVersion = 26.5;
 					};
 				};
 			};
@@ -219,6 +286,7 @@
 			targets = (
 				EA20CC692EB8B4E000555555 /* MetalProjectionForRealityKit */,
 				EA10E7842ED4650E00E3CCD0 /* MetalLighting */,
+				EAFD1DC52FAB765A00B65DB4 /* Skinning */,
 			);
 		};
 /* End PBXProject section */
@@ -238,6 +306,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EAFD1DC42FAB765A00B65DB4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -249,6 +324,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		EA20CC662EB8B4E000555555 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EAFD1DC22FAB765A00B65DB4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -499,6 +581,66 @@
 			};
 			name = Release;
 		};
+		EAFD1DD32FAB765B00B65DB4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FPZK4WRGW7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(TARGET_NAME)/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.banjun.exp.Skinning;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				XROS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Debug;
+		};
+		EAFD1DD42FAB765B00B65DB4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = FPZK4WRGW7;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(TARGET_NAME)/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = jp.banjun.exp.Skinning;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+				XROS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -525,6 +667,15 @@
 			buildConfigurations = (
 				EA20CC7C2EB8B4E200555555 /* Debug */,
 				EA20CC7D2EB8B4E200555555 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EAFD1DD62FAB765B00B65DB4 /* Build configuration list for PBXNativeTarget "Skinning" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EAFD1DD32FAB765B00B65DB4 /* Debug */,
+				EAFD1DD42FAB765B00B65DB4 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -561,6 +712,19 @@
 			productName = RealityKitContent;
 		};
 		EA7F78172ED486EE00459707 /* ShaderGraphCoder */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EA00AB472EB8D4480025B081 /* XCRemoteSwiftPackageReference "ShaderGraphCoder" */;
+			productName = ShaderGraphCoder;
+		};
+		EAFD1DC82FAB765A00B65DB4 /* RealityKitContent */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = RealityKitContent;
+		};
+		EAFD1DDB2FAB768D00B65DB4 /* MetalProjection */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MetalProjection;
+		};
+		EAFD1DDD2FAB769100B65DB4 /* ShaderGraphCoder */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = EA00AB472EB8D4480025B081 /* XCRemoteSwiftPackageReference "ShaderGraphCoder" */;
 			productName = ShaderGraphCoder;

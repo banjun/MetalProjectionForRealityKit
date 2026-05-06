@@ -1,5 +1,23 @@
 {
   "0A9B4653-B11E-4D6A-850E-C6FCB621626C" : {
+    "cameraTransform" : [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0.86602545,
+      -0.49999994,
+      0,
+      0,
+      0.49999994,
+      0.86602545,
+      0,
+      0.0035969093,
+      0.35542378,
+      0.62919164,
+      1
+    ],
     "objectMetadataList" : [
       [
         "0A9B4653-B11E-4D6A-850E-C6FCB621626C",
@@ -11,536 +29,25 @@
       }
     ]
   },
-  "1937B4B9-3979-409E-88BA-79C671D5FD76" : {
-    "objectMetadataList" : [
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_6"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_6",
-        "groovot_1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate",
-        "groovot_1",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_2",
-        "groovot_1",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_1",
-        "groovot_1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_8",
-        "groovot_1",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate",
-        "groovot",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_11",
-        "groovot_1",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_11"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate",
-        "groovot_1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_8"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_6",
-        "groovot_1",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_2",
-        "groovot_1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_4",
-        "groovot_1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_10"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate",
-        "groovot_1",
-        "groovot",
-        "groovot_1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_7",
-        "groovot_1",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_5",
-        "groovot_1",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_9",
-        "groovot_1",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_1",
-        "groovot",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_8",
-        "groovot_1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_10",
-        "groovot_1",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_3",
-        "groovot_1",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_7"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_10",
-        "groovot_1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_1",
-        "groovot_1",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_5",
-        "groovot_1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_7",
-        "groovot_1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_2"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_9"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_4",
-        "groovot_1",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_9",
-        "groovot_1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Low"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_4"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_5"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_3"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_11",
-        "groovot_1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "1937B4B9-3979-409E-88BA-79C671D5FD76",
-        "Root",
-        "Transform",
-        "Rotate_3",
-        "groovot_1"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      }
-    ]
-  },
-  "2B859176-D84E-4B27-AF85-F86A8580D68F" : {
-    "objectMetadataList" : [
-      [
-        "2B859176-D84E-4B27-AF85-F86A8580D68F",
-        "Root",
-        "Cylinder"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "2B859176-D84E-4B27-AF85-F86A8580D68F",
-        "Root"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      }
-    ]
-  },
-  "3EEF8A8A-085D-4AC1-A60D-A3A6092D0EAF" : {
-    "objectMetadataList" : [
-      [
-        "3EEF8A8A-085D-4AC1-A60D-A3A6092D0EAF",
-        "Root"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      }
-    ]
-  },
-  "429633A9-0549-42F7-AC69-B07B72111C65" : {
-    "objectMetadataList" : [
-      [
-        "429633A9-0549-42F7-AC69-B07B72111C65",
-        "Root"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      }
-    ]
-  },
-  "52C2D577-42B9-4F08-89D4-490C594CE053" : {
-    "objectMetadataList" : [
-      [
-        "52C2D577-42B9-4F08-89D4-490C594CE053",
-        "Root"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "52C2D577-42B9-4F08-89D4-490C594CE053",
-        "Root",
-        "Cylinder"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      }
-    ]
-  },
   "65F6F990-A780-4474-B78B-572E0E4E273D" : {
+    "cameraTransform" : [
+      1,
+      0,
+      -0,
+      0,
+      -0,
+      0.86602545,
+      -0.49999988,
+      0,
+      0,
+      0.49999988,
+      0.86602545,
+      0,
+      1.1972517e-08,
+      2.6179132,
+      0.43191218,
+      1
+    ],
     "objectMetadataList" : [
       [
         "65F6F990-A780-4474-B78B-572E0E4E273D",
@@ -553,6 +60,24 @@
     ]
   },
   "66168B71-AB05-424E-8B6C-D33D6E61B08F" : {
+    "cameraTransform" : [
+      1,
+      0,
+      -0,
+      0,
+      -0,
+      0.8660254,
+      -0.5,
+      0,
+      0,
+      0.5,
+      0.8660254,
+      0,
+      0,
+      0.23875366,
+      0.4135335,
+      1
+    ],
     "objectMetadataList" : [
       [
         "66168B71-AB05-424E-8B6C-D33D6E61B08F",
@@ -564,28 +89,25 @@
       }
     ]
   },
-  "72000859-5C48-4CB9-AB70-D0FB0B2C1323" : {
-    "objectMetadataList" : [
-      [
-        "72000859-5C48-4CB9-AB70-D0FB0B2C1323",
-        "Root",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "72000859-5C48-4CB9-AB70-D0FB0B2C1323",
-        "Root"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      }
-    ]
-  },
   "AF09ED6F-1707-48FD-8720-65B998362C09" : {
+    "cameraTransform" : [
+      1,
+      0,
+      -0,
+      0,
+      -0,
+      0.7071069,
+      -0.7071067,
+      0,
+      0,
+      0.7071067,
+      0.7071069,
+      0,
+      0,
+      2.8836339,
+      -0.107588194,
+      1
+    ],
     "objectMetadataList" : [
       [
         "AF09ED6F-1707-48FD-8720-65B998362C09",
@@ -612,29 +134,28 @@
       {
         "isExpanded" : true,
         "isLocked" : false
-      },
-      [
-        "AF09ED6F-1707-48FD-8720-65B998362C09",
-        "Root",
-        "GridMaterial"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "AF09ED6F-1707-48FD-8720-65B998362C09",
-        "Root",
-        "GridMaterial",
-        "GridMaterial"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
       }
     ]
   },
   "CB766F92-EE55-4A63-9401-E7B8C009764D" : {
+    "cameraTransform" : [
+      1,
+      0,
+      -0,
+      0,
+      -0,
+      0.8660253,
+      -0.5000001,
+      0,
+      0,
+      0.5000001,
+      0.8660253,
+      0,
+      0,
+      0.27093494,
+      0.4692731,
+      1
+    ],
     "objectMetadataList" : [
       [
         "CB766F92-EE55-4A63-9401-E7B8C009764D",
@@ -656,20 +177,48 @@
     ]
   },
   "D560BB77-AAF3-4BDE-B7C4-989332A4688B" : {
+    "cameraTransform" : [
+      1,
+      0,
+      -0,
+      0,
+      -0,
+      0.8660253,
+      -0.5000001,
+      0,
+      0,
+      0.5000001,
+      0.8660253,
+      0,
+      0,
+      0.27093494,
+      0.4692731,
+      1
+    ],
     "objectMetadataList" : [
 
     ]
   },
   "D66134B1-3681-4A8E-AFE5-29F257229F3B" : {
+    "cameraTransform" : [
+      1,
+      0,
+      -0,
+      0,
+      -0,
+      0.7071069,
+      -0.7071067,
+      0,
+      0,
+      0.7071067,
+      0.7071069,
+      0,
+      0,
+      0.26894823,
+      0.26934713,
+      1
+    ],
     "objectMetadataList" : [
-      [
-        "D66134B1-3681-4A8E-AFE5-29F257229F3B",
-        "Root"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
       [
         "D66134B1-3681-4A8E-AFE5-29F257229F3B",
         "Root",
@@ -682,49 +231,6 @@
       },
       [
         "D66134B1-3681-4A8E-AFE5-29F257229F3B",
-        "Root",
-        "GridMaterial"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      }
-    ]
-  },
-  "DD584E7A-AF50-469C-A2F5-11C9B97DB682" : {
-    "objectMetadataList" : [
-      [
-        "DD584E7A-AF50-469C-A2F5-11C9B97DB682",
-        "Root"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "DD584E7A-AF50-469C-A2F5-11C9B97DB682",
-        "Root",
-        "Low"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      }
-    ]
-  },
-  "E29A622C-2177-4BED-A2F7-6F7AEA4C27BA" : {
-    "objectMetadataList" : [
-      [
-        "E29A622C-2177-4BED-A2F7-6F7AEA4C27BA",
-        "Root",
-        "groovot"
-      ],
-      {
-        "isExpanded" : true,
-        "isLocked" : false
-      },
-      [
-        "E29A622C-2177-4BED-A2F7-6F7AEA4C27BA",
         "Root"
       ],
       {
