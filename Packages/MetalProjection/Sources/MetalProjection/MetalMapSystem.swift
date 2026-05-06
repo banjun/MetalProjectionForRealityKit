@@ -4,9 +4,11 @@ public struct MetalMapSystem: System {
     public struct Component: RealityKit.Component {
         public var map: MetalMap?
         public var llMesh: LowLevelMesh
-        public init(map: MetalMap? = nil, llMesh: LowLevelMesh) {
+        public var ikSolverEntity: ModelEntity?
+        public init(map: MetalMap? = nil, llMesh: LowLevelMesh, ikSolverEntity: ModelEntity? = nil) {
             self.map = map
             self.llMesh = llMesh
+            self.ikSolverEntity = ikSolverEntity
         }
     }
     public init(scene: Scene) {

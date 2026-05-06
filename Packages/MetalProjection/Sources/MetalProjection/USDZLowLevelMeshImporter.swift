@@ -101,18 +101,30 @@ public struct USDZLowLevelMeshImporter {
                     let normals = part.normals?.elements
                     let tangents = part.tangents?.elements
                     let bitangents = part.bitangents?.elements
+                    let jointInfluences = part.jointInfluences?.influences.elements
+                    let influencesPerVertex = (jointInfluences?.count ?? 0) / positions.count
                     if uvs != nil { NSLog("%@", "uv found on part") }
                     if normals != nil { NSLog("%@", "normals found on part") }
                     if tangents != nil { NSLog("%@", "tangents found on part") }
                     if bitangents != nil { NSLog("%@", "bitangents found on part") }
+                    if jointInfluences != nil { NSLog("%@", "jointInfluences found on part") }
                     guard uvs == nil || uvs?.count == positions.count else { fatalError() }
                     guard normals == nil || normals?.count == positions.count else { fatalError() }
                     guard tangents == nil || tangents?.count == positions.count else { fatalError() }
                     guard bitangents == nil || bitangents?.count == positions.count else { fatalError() }
+                    guard jointInfluences == nil || jointInfluences?.count == influencesPerVertex * positions.count else { fatalError() }
 
                     let p = $0.bindMemory(to: Vertex.self)
                     positions.enumerated().forEach { i, xyz in
-                        p[vertexOffset + i] = Vertex(position: xyz, uv: uvs?[i], normal: normals?[i], tangent: tangents?[i], bitangent: bitangents?[i])
+                        p[vertexOffset + i] = Vertex(
+                            position: xyz,
+                            uv: uvs?[i],
+                            normal: normals?[i],
+                            tangent: tangents?[i],
+                            bitangent: bitangents?[i],
+                            jointIndices: .init( [UInt16(jointInfluences?[i * influencesPerVertex].jointIndex ?? 0), 0, 0, 0]), // currently assuming 1 per v
+                            jointWeights: .init( [jointInfluences?[i * influencesPerVertex].weight ?? 0, 0, 0, 0]), // currently assuming 1 per v
+                        )
                     }
                 }
                 usdzLLMesh.withUnsafeMutableIndices {
@@ -133,6 +145,8 @@ public struct USDZLowLevelMeshImporter {
         public var normal: SIMD3<Float>?
         public var tangent: SIMD3<Float>?
         public var bitangent: SIMD3<Float>?
+        public var jointIndices: SIMD4<UInt16> = .zero
+        public var jointWeights: SIMD4<Float> = .zero
 
         public static let vertexAttributes: [LowLevelMesh.Attribute] = [
             .init(semantic: .position, format: .float3, offset: MemoryLayout<Self>.offset(of: \.position)!),
@@ -140,6 +154,9 @@ public struct USDZLowLevelMeshImporter {
             .init(semantic: .normal, format: .float3, offset: MemoryLayout<Self>.offset(of: \.normal)!),
             .init(semantic: .tangent, format: .float3, offset: MemoryLayout<Self>.offset(of: \.tangent)!),
             .init(semantic: .bitangent, format: .float3, offset: MemoryLayout<Self>.offset(of: \.bitangent)!),
+            // .unspecified causes error. as a workaround, use uv values unused at other places
+            .init(semantic: .uv1, format: .ushort4, offset: MemoryLayout<Self>.offset(of: \.jointIndices)!),
+            .init(semantic: .uv2, format: .float4, offset: MemoryLayout<Self>.offset(of: \.jointWeights)!),
         ]
         public static let vertexLayouts: [LowLevelMesh.Layout] = [
             .init(bufferIndex: 0, bufferStride: MemoryLayout<Self>.stride)

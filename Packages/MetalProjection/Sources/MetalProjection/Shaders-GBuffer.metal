@@ -4,9 +4,23 @@
 [[vertex]]
 VertexOut gbuffer_vertex(VertexIn in [[stage_in]],
                          const device VertexUniforms *uniforms [[buffer(1)]],
+                         constant float4x4 *skinningMatrices [[buffer(2)]],
                          const uint vid [[instance_id]]) {
     auto uniform = uniforms[vid];
-    auto pModel4 = float4(in.position, 1); // assuming in.position is in model pos
+
+    // skinning, supports up to 4 weights per vertex
+    float4x4 modelMatrix;
+    if (length_squared(in.jointWeights) > 0.0) {
+        modelMatrix =
+            in.jointWeights.x * skinningMatrices[in.jointIndices.x] +
+            in.jointWeights.y * skinningMatrices[in.jointIndices.y] +
+            in.jointWeights.z * skinningMatrices[in.jointIndices.z] +
+            in.jointWeights.w * skinningMatrices[in.jointIndices.w];
+    } else {
+        modelMatrix = float4x4(1.0);
+    }
+
+    auto pModel4 = modelMatrix * float4(in.position, 1); // assuming in.position is in model pos
     auto pWorld4 = uniform.worldFromModelTransform * pModel4;
     auto pView4 = uniform.cameraFromWorldTransform * pWorld4;
     auto pClip4 = uniform.projectionFromCameraTransform * pView4;

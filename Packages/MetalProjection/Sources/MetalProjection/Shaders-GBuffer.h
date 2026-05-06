@@ -7,6 +7,10 @@ struct VertexIn {
     simd_float3 normal [[attribute(2)]];
     simd_float3 tangent [[attribute(3)]];
     simd_float3 bitangent [[attribute(4)]];
+
+    // skinning. limit to top-4 joints. set all 0 to disable.
+    ushort4 jointIndices [[attribute(5)]];
+    float4 jointWeights [[attribute(6)]];
 };
 struct VertexOut {
     float4 position [[position]];

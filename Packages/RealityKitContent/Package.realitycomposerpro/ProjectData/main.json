@@ -1,11 +1,25 @@
 {
   "pathsToIds" : {
+    "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/%E3%81%82%E3%82%8A%E3%81%994-skeleton.usda" : "4D017A4E-93B2-41E8-9973-BDA5E9B12172",
     "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/GridMaterial.usda" : "CB766F92-EE55-4A63-9401-E7B8C009764D",
     "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Immersive.usda" : "65F6F990-A780-4474-B78B-572E0E4E273D",
     "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Scene.usda" : "0A9B4653-B11E-4D6A-850E-C6FCB621626C",
     "\/RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Untitled Scene.usda" : "D560BB77-AAF3-4BDE-B7C4-989332A4688B",
+    "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/CenterStage.usda" : "6C98CA7B-15B7-4F8B-BC81-FBCF50914C9C",
+    "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Floor.usda" : "F86B863D-624E-4901-BCC8-9E3E060F0C96",
     "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/GridMaterial.usda" : "66168B71-AB05-424E-8B6C-D33D6E61B08F",
     "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Immersive.usda" : "AF09ED6F-1707-48FD-8720-65B998362C09",
-    "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Scene.usda" : "D66134B1-3681-4A8E-AFE5-29F257229F3B"
+    "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Pillars.usda" : "FBB9E1C8-CF08-4DD3-BACB-B88F79C39013",
+    "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/Scene.usda" : "D66134B1-3681-4A8E-AFE5-29F257229F3B",
+    "RealityKitContent\/Sources\/RealityKitContent\/RealityKitContent.rkassets\/groovot.usda" : "E435133E-CCC2-45C6-96F8-7E230FE55FB8"
+  },
+  "projectID" : -1581206637771748678,
+  "uuidToIntID" : {
+    "4D017A4E-93B2-41E8-9973-BDA5E9B12172" : 1542641929179900554,
+    "6C98CA7B-15B7-4F8B-BC81-FBCF50914C9C" : 6422556615808985353,
+    "AF09ED6F-1707-48FD-8720-65B998362C09" : -7071986906145880336,
+    "E435133E-CCC2-45C6-96F8-7E230FE55FB8" : 2023170577870984980,
+    "F86B863D-624E-4901-BCC8-9E3E060F0C96" : -5305012025401762050,
+    "FBB9E1C8-CF08-4DD3-BACB-B88F79C39013" : -7560376545636589717
   }
 }
