@@ -16,11 +16,11 @@ public struct MetalMapSystem: System {
     public func update(context: SceneUpdateContext) {
         var maps: [ObjectIdentifier: (MetalMap, [Entity])] = [:]
         for e in context.entities(matching: .init(where: .has(Component.self)), updatingSystemWhen: .rendering) {
-            guard e.isEnabledInHierarchy, let map = e.components[Component.self]!.map else { continue }
+            guard let map = e.components[Component.self]!.map else { continue }
             maps[ObjectIdentifier(map), default: (map, [])].1.append(e)
         }
         for (map, entities) in maps.values {
-            map.draw(entities)
+            map.draw(entities.filter {$0.isEnabledInHierarchy})
         }
     }
 }

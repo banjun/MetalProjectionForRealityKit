@@ -10,16 +10,31 @@ import RealityKit
 import RealityKitContent
 
 struct ContentView: View {
+    @Environment(AppModel.self) private var appModel
 
     var body: some View {
-        VStack {
-            Model3D(named: "Scene", bundle: realityKitContentBundle)
-                .padding(.bottom, 50)
+        VStack(spacing: 40) {
+            @Bindable var appModel = appModel
+            HStack(spacing: 100) {
+                Toggle(isOn: $appModel.showsRealityKitIK) {
+                    Text("Show RealityKit IK").padding(20)
+                }
+                Toggle(isOn: $appModel.showsMetalIK) {
+                    Text("Show Metal IK").padding(20)
+                }
+            }
+            .buttonBorderShape(.roundedRectangle)
+            .font(.extraLargeTitle)
 
-            Text("Hello, world!")
+            Divider()
+            Toggle(isOn: $appModel.upperLimbVisibility) {
+                Text("Show Hands").padding(20)
+            }
 
+            Divider()
             ToggleImmersiveSpaceButton()
         }
+        .toggleStyle(.button)
         .padding()
     }
 }

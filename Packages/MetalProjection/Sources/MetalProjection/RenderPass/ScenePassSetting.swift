@@ -93,6 +93,8 @@ class ScenePassSetting {
         encoder.setCullMode(.back) // just for performance, requires front facing = ccw (below)
         encoder.setFrontFacing(.counterClockwise)
 
+        guard !entities.isEmpty else { return }
+
         let viewCount = outTexture.arrayLength
         var vertexUniforms: [VertexUniforms] = cameraTransformAndProjections.map {
             VertexUniforms(viewCount: Int32(cameraTransformAndProjections.count),

@@ -7,6 +7,10 @@ import RealityKitContent
 struct ImmersiveView: View {
     @Environment(AppModel.self) private var appModel
     var metalMap: MetalMap {appModel.metalMap}
+    @State private var spatialTrackingSession: SpatialTrackingSession?
+    let root: Entity = .init()
+    let puppetRoot: Entity = .init()
+    let palm: AnchorEntity = .init(.hand(.left, location: .palm), trackingMode: .predicted)
 
     var body: some View {
         RealityView { content in
@@ -18,7 +22,6 @@ struct ImmersiveView: View {
             progress.position = [0, 1, -1]
             content.add(progress)
 
-            let root = Entity()
             content.add(root)
 
             Task {
@@ -36,10 +39,9 @@ struct ImmersiveView: View {
                 // MARK: - Load Entity, added naive joints to USDZ in RCP
                 let skeletonEntity = try! await
                 Entity(named: "ありす4-skeleton", in: realityKitContentBundle)
-                skeletonEntity.position = [-0.1, 1, -0.5]
-                skeletonEntity.transform.rotation = .init(angle: .pi, axis: [0, 1, 0])
                 skeletonEntity.configureSimpleManipulationGestureComponent(collisionShapes: [.generateSphere(radius: 0.075).offsetBy(translation: [0, 0.075, 0])])
-                root.addChild(skeletonEntity) // as reference
+                appModel.realityKitIKEntity.addChild(skeletonEntity)
+                puppetRoot.addChild(appModel.realityKitIKEntity) // as reference
 
                 // MARK: - Add Skeleton on the fly, calculating naive influences by distance
                 let modelEntity = (skeletonEntity.findEntity(named: "Mesh") as! ModelEntity)
@@ -181,33 +183,21 @@ struct ImmersiveView: View {
 
                 let resource = try IKResource(rig: rig)
                 modelEntity.components.set(IKComponent(resource: resource))
-
-                // MARK: - Add Fixed IK targets for test
-
-                modelEntity.components.set(PuppetIKComponent(
-                    L_wrist: .init(translation: [
-                        skeletonEntity.position.x + 0.05,
-                        skeletonEntity.position.y + 0.02,
-                        skeletonEntity.position.z + 0.01]),
-                    R_wrist: .init(translation: [
-                        skeletonEntity.position.x - 0.05,
-                        skeletonEntity.position.y + 0.09,
-                        skeletonEntity.position.z + 0.01]),
-                ))
-                PuppetRealityKitIKSystem.registerSystem()
+                modelEntity.components.set(PuppetIKComponent())
 
                 // MARK: -
 
-                root.addChild({
+                puppetRoot.addChild(appModel.metalIKEntity)
+                appModel.metalIKEntity.addChild({
                     let llImporter = try! USDZLowLevelMeshImporter(rootEntity: skeletonEntity)
                     let gestureOnlyEntity: ModelEntity = try! llImporter.emptyModelEntity()
-                    gestureOnlyEntity.transform.rotation = .init(angle: .pi, axis: [0, 1, 0])
                     gestureOnlyEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
                     gestureOnlyEntity.configureSimpleManipulationGestureComponent(collisionShapes: [.generateSphere(radius: 0.075).offsetBy(translation: [0, 0.075, 0])])
 
-                    gestureOnlyEntity.position = skeletonEntity.position
-                    gestureOnlyEntity.position.x *= -1
+                    gestureOnlyEntity.position = .zero //skeletonEntity.position
+//                    gestureOnlyEntity.position.x *= -1
 
+                    gestureOnlyEntity.components.set(PuppetIKComponent())
                     gestureOnlyEntity.components.set(PuppetIKSolverComponent(
                         skeletonJoints: skeleton.joints,
                         jointTransforms: modelEntity.jointTransforms.map(\.matrix),
@@ -220,17 +210,6 @@ struct ImmersiveView: View {
                         maxIterations: 30,
                         globalFkWeight: 0.2,
                     ))
-                    gestureOnlyEntity.components.set(PuppetIKComponent(
-                        L_wrist: .init(translation: [
-                            gestureOnlyEntity.position.x + 0.05,
-                            gestureOnlyEntity.position.y + 0.02,
-                            gestureOnlyEntity.position.z + 0.01]),
-                        R_wrist: .init(translation: [
-                            gestureOnlyEntity.position.x - 0.05,
-                            gestureOnlyEntity.position.y + 0.09,
-                            gestureOnlyEntity.position.z + 0.01]),
-                    ))
-                    PuppetIKSystem.registerSystem()
 
                     return gestureOnlyEntity
                 }())
@@ -269,6 +248,55 @@ struct ImmersiveView: View {
                 await root.addChild(screenSphere(radius: 10000))
             }
         }
+        .task {
+            spatialTrackingSession = SpatialTrackingSession()
+            let unavailabilities = await spatialTrackingSession?.run(.init(tracking: [.hand]))
+            if unavailabilities?.anchor.contains(.hand) != true {
+                puppetRoot.transform = .init(rotation: .init(angle: .pi / 2, axis: [0, 1, 0]) * .init(angle: .pi / 2, axis: [1, 0, 0]), translation: [-0.03, 0.05, 0.01])
+                root.addChild(palm)
+                palm.addChild(puppetRoot)
+
+                root.addChild(AnchorEntity(.hand(.left, location: .joint(for: .littleFingerTip)), trackingMode: .predicted))
+                root.addChild(AnchorEntity(.hand(.left, location: .joint(for: .thumbTip)), trackingMode: .predicted))
+                PuppetHandTrackingSystem.registerSystem()
+            } else {
+                // Simulator
+                puppetRoot.position = [0, 1, -0.5]
+                root.addChild(puppetRoot)
+
+                // MARK: - Add Fixed IK targets for test
+                try? await Task.sleep(for: .seconds(1))
+                let metalEntity = appModel.metalIKEntity.children.first!
+                metalEntity.transform.rotation = .init(angle: .pi, axis: [0, 1, 0])
+                metalEntity.components.set(PuppetIKComponent(
+                    L_wrist: .init(translation: [
+                        puppetRoot.position.x + metalEntity.position.x + 0.05,
+                        puppetRoot.position.y + metalEntity.position.y + 0.02,
+                        puppetRoot.position.z + metalEntity.position.z + 0.01]),
+                    R_wrist: .init(translation: [
+                        puppetRoot.position.x + metalEntity.position.x - 0.05,
+                        puppetRoot.position.y + metalEntity.position.y + 0.09,
+                        puppetRoot.position.z + metalEntity.position.z + 0.01]),
+                ))
+
+                appModel.realityKitIKEntity.position.x = -0.3
+                let modelEntity = (appModel.realityKitIKEntity.findEntity(named: "Mesh") as! ModelEntity)
+                modelEntity.components.set(PuppetIKComponent(
+                    L_wrist: .init(translation: [
+                        appModel.realityKitIKEntity.position.x + 0.05,
+                        puppetRoot.position.y + 0.02,
+                        puppetRoot.position.z + 0.01]),
+                    R_wrist: .init(translation: [
+                        appModel.realityKitIKEntity.position.x - 0.05,
+                        puppetRoot.position.y + 0.09,
+                        puppetRoot.position.z + 0.01]),
+                ))
+            }
+            PuppetIKSystem.registerSystem()
+            PuppetRealityKitIKSystem.registerSystem()
+        }
+        .persistentSystemOverlays(.hidden)
+        .upperLimbVisibility(appModel.upperLimbVisibility ? .visible : .hidden)
     }
 }
 
