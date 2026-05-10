@@ -1,42 +1,45 @@
+import Foundation
 import RealityKit
-
-struct PuppetIKComponent: Component {
-    var L_wrist: Transform?
-    var R_wrist: Transform?
-}
-
-struct CyclicCoordinateDescentComponent {
-    var skeleton: SkeletalPose?
-}
 
 private extension simd_float4 {
     var xyz: simd_float3 {.init(x, y, z)}
 }
 
+struct PuppetIKSolverComponent: Component {
+    var skeletonJoints: [MeshResource.Skeleton.Joint]
+    // transform from: Joint[i] -> Parent Joint. initial value should be ModelEntity.jointTransforms
+    var jointTransforms: [simd_float4x4]
+    var copyJointTransforms: (([simd_float4x4]) -> Void)? // Joint -> Parent Joint
+    var copySkinningMatrices: (([simd_float4x4]) -> Void)? // Model -> Model
+    var maxIterations: Int = 30
+    var globalFkWeight: Float = 0.2
+}
+
 struct PuppetIKSystem: System {
-    static let query: EntityQuery = .init(where: .has(PuppetIKComponent.self) && .has(IKComponent.self))
-    init(scene: RealityKit.Scene) {}
+    static let query: EntityQuery = .init(where: .has(PuppetIKComponent.self) && .has(PuppetIKSolverComponent.self))
+    init(scene: Scene) {}
     func update(context: SceneUpdateContext) {
         context.entities(matching: Self.query, updatingSystemWhen: .rendering).forEach { e in
-            guard case let e as ModelEntity = e, let model = e.model else { return }
-            let ik = e.components[IKComponent.self]!
             let puppet = e.components[PuppetIKComponent.self]!
-            guard let solver = ik.solvers.first else { return }
+            var solver = e.components[PuppetIKSolverComponent.self]!
+            let skeletonJoints = solver.skeletonJoints
+            let skeletonJointNames = skeletonJoints.map(\.name)
+            defer {e.components.set(solver)}
 
-            // Custom IK joints definition, redefine just like IKRig
             let relations: [String: (Transform?, [String])] = [
-                "L_wrist": (puppet.L_wrist.map {e.convert(transform: $0, from: nil)}, ["L_elbow", "L_shoulder"]),
-                "R_wrist": (puppet.R_wrist.map {e.convert(transform: $0, from: nil)}, ["R_elbow", "R_shoulder"]),
+                "L_wrist": (puppet.L_wrist.map {e.convert(transform: $0, from: nil)}, [ "L_shoulder", "L_elbow"]),
+                "R_wrist": (puppet.R_wrist.map {e.convert(transform: $0, from: nil)}, ["R_shoulder", "R_elbow"]),
             ]
+
             let relationIndices = relations.flatMap { key, value -> [(target: Transform, tipIndex: Int, movableIndices: Int)] in
                 guard let target = value.0 else { return [] }
-                guard let tipIndex = e.jointNames.firstIndex(of: key) else { return [] }
-                let movables = value.1.compactMap {e.jointNames.firstIndex(of: $0)}
+                guard let tipIndex = skeletonJointNames.firstIndex(of: key) else { return [] }
+                let movables = value.1.compactMap {skeletonJointNames.firstIndex(of: $0)}
                 return movables.map {(target, tipIndex, $0)}
             }
-            // transform from: Joint[i] -> Parent Joint
-            var joints = e.jointTransforms.map(\.matrix)
-            let skeleton = model.mesh.contents.skeletons[0]
+
+            guard solver.jointTransforms.count == skeletonJoints.count else { return }
+            var joints = solver.jointTransforms
             let maxIterations = solver.maxIterations
             let globalFkWeight: Float = solver.globalFkWeight
             let rotationThreshold: Float = 0.0001
@@ -48,7 +51,7 @@ struct PuppetIKSystem: System {
                     // convert in 1 loop assuming joints are topologically sorted, that is, for all index, parent index < child index
                     var jointTransformsInModel = [simd_float4x4](repeating: Transform.identity.matrix, count: joints.count)
                     for i in 0..<joints.count {
-                        if let pi = skeleton.joints[i].parentIndex {
+                        if let pi = skeletonJoints[i].parentIndex {
                             jointTransformsInModel[i] = jointTransformsInModel[pi] * joints[i]
                         } else {
                             jointTransformsInModel[i] = joints[i]
@@ -65,13 +68,24 @@ struct PuppetIKSystem: System {
                     // rotate (tip) -> (target)
                     let v1 = normalize(tipPos - jointPos)
                     let v2 = normalize(targetPos - jointPos)
+                    let dot = dot(v1, v2)
+                    let weight = min(1.0, (1.0 - dot) * 5.0)
+                    guard dot < 0.9999 else { continue }
                     guard simd_length_squared(v1) > 1e-10 && simd_length_squared(v2) > 1e-10 else { continue }
-                    let rotation = simd_quatf(from: v1, to: v2)
+                    var rotation = simd_quatf(from: v1, to: v2)
+                    rotation = simd_slerp(simd_quatf(real: 1, imag: .zero), rotation, weight)
                     maxRotationInIteration = max(maxRotationInIteration, abs(rotation.real - 1))
 
+                    var next = rotation * simd_quatf(joints[movableIndex])
+                    // limit angle
+                    let angleLimit: Float = .pi / 3
+                    if next.angle > angleLimit {
+                        next = simd_quatf(angle: angleLimit, axis: rotation.axis)
+                        // NSLog("%@", "\(skeletonJointNames[movableIndex]) rotation.angle = \(next.angle) (limited)")
+                    }
                     // update iteration result
                     joints[movableIndex] = Transform(
-                        rotation: rotation * simd_quatf(joints[movableIndex]),
+                        rotation: next,
                         translation: joints[movableIndex].columns.3.xyz).matrix
                 }
                 if maxRotationInIteration < rotationThreshold {
@@ -79,22 +93,42 @@ struct PuppetIKSystem: System {
                 }
             }
             // blend using FK weight and apply to entity
-            for i in 0..<joints.count {
-                var t = Transform(matrix: joints[i])
+            var jointTransforms = joints.enumerated().map { i, joint in
+                var t = Transform(matrix: joint)
                 t.rotation = simd_slerp(simd_quatf(real: 1, imag: .zero), t.rotation, 1 - globalFkWeight)
-                e.jointTransforms[i] = t
+                return t
             }
-
-            // RealityKit IK
-            if let c = solver.constraints["L_wrist"], let t = puppet.L_wrist {
-                c.target = e.convert(transform: t, from: nil)
-                c.animationOverrideWeight = (1, 1)
+            // inter-frame slerp
+            Set(relationIndices.map(\.movableIndices)).forEach { i in
+                let slerpFactor: Float = 0.2
+                jointTransforms[i] = Transform(
+                    rotation: simd_slerp(
+                        Transform(matrix: solver.jointTransforms[i]).rotation,
+                        jointTransforms[i].rotation,
+                        slerpFactor),
+                    translation: jointTransforms[i].translation)
             }
-            if let c = solver.constraints["R_wrist"], let t = puppet.R_wrist {
-                c.target = e.convert(transform: t, from: nil)
-                c.animationOverrideWeight = (1, 1)
+            // save result
+            solver.jointTransforms = jointTransforms.map(\.matrix)
+            // notify others
+            solver.copyJointTransforms?(solver.jointTransforms)
+            if let copySkinningMatrices = solver.copySkinningMatrices {
+                // transform from: Joint[i] -> Model
+                var solved = [simd_float4x4](repeating: Transform.identity.matrix, count: solver.jointTransforms.count)
+                for i in 0..<jointTransforms.count {
+                    if let pi = skeletonJoints[i].parentIndex {
+                        solved[i] = solved[pi] * solver.jointTransforms[i]
+                } else {
+                        solved[i] = solver.jointTransforms[i]
+                    }
+                }
+                let ibms = skeletonJoints.map(\.inverseBindPoseMatrix) // Model -> Joint[i]
+                // Model_From_JointI_Transform * JointI_From_Model_Transform
+                let skinningMatrices = zip(solved, ibms).map { $0 * $1 }
+                copySkinningMatrices(skinningMatrices)
             }
-            e.components.set(ik)
         }
     }
 }
+
+

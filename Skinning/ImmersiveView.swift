@@ -38,6 +38,7 @@ struct ImmersiveView: View {
                 Entity(named: "ありす4-skeleton", in: realityKitContentBundle)
                 skeletonEntity.position = [-0.1, 1, -0.5]
                 skeletonEntity.transform.rotation = .init(angle: .pi, axis: [0, 1, 0])
+                skeletonEntity.configureSimpleManipulationGestureComponent(collisionShapes: [.generateSphere(radius: 0.075).offsetBy(translation: [0, 0.075, 0])])
                 root.addChild(skeletonEntity) // as reference
 
                 // MARK: - Add Skeleton on the fly, calculating naive influences by distance
@@ -184,23 +185,53 @@ struct ImmersiveView: View {
                 // MARK: - Add Fixed IK targets for test
 
                 modelEntity.components.set(PuppetIKComponent(
-                    L_wrist: .init(translation: [skeletonEntity.position.x + 0.05, skeletonEntity.position.y + 0.02, skeletonEntity.position.z + 0.01]),
-                    R_wrist: .init(translation: [skeletonEntity.position.x - 0.05, skeletonEntity.position.y + 0.07, skeletonEntity.position.z + 0.01]),
+                    L_wrist: .init(translation: [
+                        skeletonEntity.position.x + 0.05,
+                        skeletonEntity.position.y + 0.02,
+                        skeletonEntity.position.z + 0.01]),
+                    R_wrist: .init(translation: [
+                        skeletonEntity.position.x - 0.05,
+                        skeletonEntity.position.y + 0.09,
+                        skeletonEntity.position.z + 0.01]),
                 ))
-                PuppetIKSystem.registerSystem()
+                PuppetRealityKitIKSystem.registerSystem()
 
                 // MARK: -
 
                 root.addChild({
                     let llImporter = try! USDZLowLevelMeshImporter(rootEntity: skeletonEntity)
-                    let gestureOnlyEntity: Entity = try! llImporter.emptyModelEntity()
+                    let gestureOnlyEntity: ModelEntity = try! llImporter.emptyModelEntity()
                     gestureOnlyEntity.transform.rotation = .init(angle: .pi, axis: [0, 1, 0])
-                    gestureOnlyEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh, ikSolverEntity: modelEntity))
-//                    gestureOnlyEntity.configureSimpleManipulationGestureComponent(collisionShapes: [.generateSphere(radius: 0.075).offsetBy(translation: [0, 0.075, 0])])
-
+                    gestureOnlyEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
+                    gestureOnlyEntity.configureSimpleManipulationGestureComponent(collisionShapes: [.generateSphere(radius: 0.075).offsetBy(translation: [0, 0.075, 0])])
 
                     gestureOnlyEntity.position = skeletonEntity.position
                     gestureOnlyEntity.position.x *= -1
+
+                    gestureOnlyEntity.components.set(PuppetIKSolverComponent(
+                        skeletonJoints: skeleton.joints,
+                        jointTransforms: modelEntity.jointTransforms.map(\.matrix),
+//                        copyJointTransforms: { [weak modelEntity] in
+//                            modelEntity?.jointTransforms = $0.map {Transform(matrix: $0)}
+//                        },
+                        copySkinningMatrices: { [weak gestureOnlyEntity] in
+                            gestureOnlyEntity?.components[MetalMapSystem.Component.self]?.skinningMatrices = $0
+                        },
+                        maxIterations: 30,
+                        globalFkWeight: 0.2,
+                    ))
+                    gestureOnlyEntity.components.set(PuppetIKComponent(
+                        L_wrist: .init(translation: [
+                            gestureOnlyEntity.position.x + 0.05,
+                            gestureOnlyEntity.position.y + 0.02,
+                            gestureOnlyEntity.position.z + 0.01]),
+                        R_wrist: .init(translation: [
+                            gestureOnlyEntity.position.x - 0.05,
+                            gestureOnlyEntity.position.y + 0.09,
+                            gestureOnlyEntity.position.z + 0.01]),
+                    ))
+                    PuppetIKSystem.registerSystem()
+
                     return gestureOnlyEntity
                 }())
 

@@ -51,6 +51,7 @@
 		EAFD1DE02FAB77FC00B65DB4 /* Exceptions for "MetalLighting" folder in "Skinning" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				SimpleManipulation.swift,
 				"ありす4.usdz",
 			);
 			target = EAFD1DC52FAB765A00B65DB4 /* Skinning */;

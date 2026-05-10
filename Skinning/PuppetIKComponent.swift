@@ -1,3 +1,4 @@
+import RealityKit
 
 struct PuppetIKComponent: Component {
     var L_wrist: Transform?

@@ -104,7 +104,7 @@ class ScenePassSetting {
                            cameraFromProjectionTransform: $0.projection.inverse)
         }
 
-        let entityLLMeshes = entities.compactMap {e in e.components[MetalMapSystem.Component.self].map {(e, $0.llMesh, $0.ikSolverEntity)}}
+        let entityLLMeshes = entities.compactMap {e in e.components[MetalMapSystem.Component.self].map {(e, $0.llMesh, $0.skinningMatrices)}}
         let totalPartsCount = entityLLMeshes.reduce(into: 0) {$0 += $1.1.parts.count}
         let argBufferAlignment = 256 // Fragment Function(render_fragment): the offset into the buffer uniforms that is bound at Buffer index 0 must be a multiple of 256
         let argBufferAlignedLength = (fragmentArgEncoder.encodedLength + argBufferAlignment - 1) & ~(argBufferAlignment - 1)
@@ -205,7 +205,7 @@ class ScenePassSetting {
         fragmentArgBufferOffset = 0
         encoder.setFragmentBuffer(fragmentArgBuffer, offset: 0, index: 0)
 
-        func setVertexBuffersDefered(entity: Entity, llMesh: LowLevelMesh, ikSolverEntity: ModelEntity?) -> () -> MTLBuffer {
+        func setVertexBuffersDefered(entity: Entity, llMesh: LowLevelMesh, skinningMatrices: [simd_float4x4]) -> () -> MTLBuffer {
             {
                 encoder.setVertexBuffer(llMesh.read(bufferIndex: 0, using: commandBuffer), offset: 0, index: 0)
                 let worldFromModelTransform = entity.convert(transform: .identity, to: nil).matrix
@@ -216,48 +216,24 @@ class ScenePassSetting {
                 encoder.setVertexBytes(&vertexUniforms, length: MemoryLayout<VertexUniforms>.stride * vertexUniforms.count, index: 1)
 
                 // skinningMatrices should be Model -> Model
-                var skinningMatrices: [simd_float4x4] = []
-                if let ikSolverEntity, let model = ikSolverEntity.model {
-                    // transform from: Joint[i] -> Parent Joint
-                    var jointTransforms = ikSolverEntity.jointTransforms.map(\.matrix)
-
-                    // Problem: cannot get IK results from jointTransform
-                    // If we set L_shoulder/R_shoulder directly, the skinning could be performed:
-//                    jointTransforms[8] = Transform(rotation: .init(angle: .pi / 8, axis: [0, -1, 0]) * .init(angle: .pi / 16, axis: [0, 0, -1])).matrix
-//                    jointTransforms[12] = Transform(rotation: .init(angle: .pi / 8, axis: [0, 1, 0]) * .init(angle: .pi / 3, axis: [0, 0, 1])).matrix
-
-                    let skeleton = model.mesh.contents.skeletons[0]
-                    // transform from: Joint[i] -> Model
-                    var solved = [simd_float4x4](repeating: Transform.identity.matrix, count: jointTransforms.count)
-                    for i in 0..<jointTransforms.count {
-                        if let pi = skeleton.joints[i].parentIndex {
-                            solved[i] = solved[pi] * jointTransforms[i]
-                        } else {
-                            solved[i] = jointTransforms[i]
-                        }
-                    }
-                    let ibms = skeleton.joints.map(\.inverseBindPoseMatrix) // Model -> Joint[i]
-                    // Model_From_JointI_Transform * JointI_From_Model_Transform
-                    skinningMatrices = zip(solved, ibms).map { $0 * $1 }
-
-                    //NSLog("%@", "skinningMatrices = \(skinningMatrices)")
-//                    NSLog("%@", "jointTransforms.columns.3 = \(jointTransforms.map(\.columns.3))")
-//                    ikSolverEntity.components[SkeletalPosesComponent.self]!.poses[0].jointTransforms.enumerated().forEach { i, v in
-//                        NSLog("%@", "poses[0].jointTransforms[\(i)].rotation = \(String(describing: v.rotation))")
-//                    }
+                if !skinningMatrices.isEmpty {
+                    var skinningMatrices: [simd_float4x4] = skinningMatrices
+                    encoder.setVertexBytes(&skinningMatrices, length: MemoryLayout<float4x4>.stride * skinningMatrices.count, index: 2)
+                } else {
+                    var skinningMatrices: [simd_float4x4] = [simd_float4x4](repeating: Transform.identity.matrix, count: 1)
+                    encoder.setVertexBytes(&skinningMatrices, length: MemoryLayout<float4x4>.stride * skinningMatrices.count, index: 2)
                 }
-                encoder.setVertexBytes(&skinningMatrices, length: MemoryLayout<float4x4>.stride * skinningMatrices.count, index: 2)
 
                 return llMesh.readIndices(using: commandBuffer)
             }
         }
 
         var shaderGraphMaterialParts: [(part: LowLevelMesh.Part, indexBuffer: () -> MTLBuffer, state: MTLRenderPipelineState)] = []
-        for (entity, llMesh, ikSolverEntity) in entityLLMeshes {
+        for (entity, llMesh, skinningMatrices) in entityLLMeshes {
             // --
             let materials = (entity as? ModelEntity)?.model!.materials ?? []
             // --
-            let deferred = setVertexBuffersDefered(entity: entity, llMesh: llMesh, ikSolverEntity: ikSolverEntity)
+            let deferred = setVertexBuffersDefered(entity: entity, llMesh: llMesh, skinningMatrices: skinningMatrices)
             let indexBuffer = deferred()
             for part in llMesh.parts {
                 let m = part.materialIndex < materials.count ? materials[part.materialIndex] : nil

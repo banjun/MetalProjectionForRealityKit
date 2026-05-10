@@ -4,11 +4,11 @@ public struct MetalMapSystem: System {
     public struct Component: RealityKit.Component {
         public var map: MetalMap?
         public var llMesh: LowLevelMesh
-        public var ikSolverEntity: ModelEntity?
-        public init(map: MetalMap? = nil, llMesh: LowLevelMesh, ikSolverEntity: ModelEntity? = nil) {
+        public var skinningMatrices: [simd_float4x4]
+        public init(map: MetalMap? = nil, llMesh: LowLevelMesh, skinningMatrices: [simd_float4x4] = []) {
             self.map = map
             self.llMesh = llMesh
-            self.ikSolverEntity = ikSolverEntity
+            self.skinningMatrices = skinningMatrices
         }
     }
     public init(scene: Scene) {

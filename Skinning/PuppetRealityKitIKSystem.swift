@@ -1,6 +1,8 @@
+import RealityKit
+
 struct PuppetRealityKitIKSystem: System {
     static let query: EntityQuery = .init(where: .has(PuppetIKComponent.self) && .has(IKComponent.self))
-    init(scene: RealityKit.Scene) {}
+    init(scene: Scene) {}
     func update(context: SceneUpdateContext) {
         context.entities(matching: Self.query, updatingSystemWhen: .rendering).forEach { e in
             let ik = e.components[IKComponent.self]!
