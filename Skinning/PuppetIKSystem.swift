@@ -13,6 +13,15 @@ struct PuppetIKSolverComponent: Component {
     var copySkinningMatrices: (([simd_float4x4]) -> Void)? // Model -> Model
     var maxIterations: Int = 30
     var globalFkWeight: Float = 0.2
+    var stepAngleLimit: Float = .pi / 20
+    var globalAngleLimit: Float = .pi / 4
+    var slerpFactor: Float = 0.1
+
+    /// [tip name: (target in world, movable joint names)]
+    var relations: [String: (KeyPath<PuppetIKComponent, Transform?>, [String])] = [
+        "L_wrist": (\.L_wrist, ["L_elbow", "L_shoulder", "hip"].reversed()),
+        "R_wrist": (\.R_wrist, ["R_elbow", "R_shoulder", "hip"].reversed()),
+    ]
 }
 
 struct PuppetIKSystem: System {
@@ -26,13 +35,8 @@ struct PuppetIKSystem: System {
             let skeletonJointNames = skeletonJoints.map(\.name)
             defer {e.components.set(solver)}
 
-            let relations: [String: (Transform?, [String])] = [
-                "L_wrist": (puppet.L_wrist.map {e.convert(transform: $0, from: nil)}, [ "L_shoulder", "L_elbow"]),
-                "R_wrist": (puppet.R_wrist.map {e.convert(transform: $0, from: nil)}, ["R_shoulder", "R_elbow"]),
-            ]
-
-            let relationIndices = relations.flatMap { key, value -> [(target: Transform, tipIndex: Int, movableIndices: Int)] in
-                guard let target = value.0 else { return [] }
+            let relationIndices = solver.relations.flatMap { key, value -> [(target: Transform, tipIndex: Int, movableIndices: Int)] in
+                guard let target = (puppet[keyPath: value.0].map {e.convert(transform: $0, from: nil)}) else { return [] }
                 guard let tipIndex = skeletonJointNames.firstIndex(of: key) else { return [] }
                 let movables = value.1.compactMap {skeletonJointNames.firstIndex(of: $0)}
                 return movables.map {(target, tipIndex, $0)}
@@ -73,14 +77,16 @@ struct PuppetIKSystem: System {
                     guard dot < 0.9999 else { continue }
                     guard simd_length_squared(v1) > 1e-10 && simd_length_squared(v2) > 1e-10 else { continue }
                     var rotation = simd_quatf(from: v1, to: v2)
+                    if rotation.angle > solver.stepAngleLimit {
+                        rotation = simd_quatf(angle: solver.stepAngleLimit, axis: rotation.axis)
+                    }
                     rotation = simd_slerp(simd_quatf(real: 1, imag: .zero), rotation, weight)
                     maxRotationInIteration = max(maxRotationInIteration, abs(rotation.real - 1))
 
                     var next = rotation * simd_quatf(joints[movableIndex])
                     // limit angle
-                    let angleLimit: Float = .pi / 3
-                    if next.angle > angleLimit {
-                        next = simd_quatf(angle: angleLimit, axis: rotation.axis)
+                    if next.angle > solver.globalAngleLimit {
+                        next = simd_quatf(angle: solver.globalAngleLimit, axis: rotation.axis)
                         // NSLog("%@", "\(skeletonJointNames[movableIndex]) rotation.angle = \(next.angle) (limited)")
                     }
                     // update iteration result
@@ -100,12 +106,11 @@ struct PuppetIKSystem: System {
             }
             // inter-frame slerp
             Set(relationIndices.map(\.movableIndices)).forEach { i in
-                let slerpFactor: Float = 0.2
                 jointTransforms[i] = Transform(
                     rotation: simd_slerp(
                         Transform(matrix: solver.jointTransforms[i]).rotation,
                         jointTransforms[i].rotation,
-                        slerpFactor),
+                        solver.slerpFactor),
                     translation: jointTransforms[i].translation)
             }
             // save result

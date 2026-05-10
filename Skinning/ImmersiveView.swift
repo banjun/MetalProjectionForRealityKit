@@ -35,6 +35,7 @@ struct ImmersiveView: View {
                 metalMap.isLineLights1Enabled = false
                 metalMap.isLineLights1Enabled = false
                 metalMap.isLineLights1Enabled = false
+                metalMap.surfaceLightBaseIntensity = 120
 
                 // MARK: - Load Entity, added naive joints to USDZ in RCP
                 let skeletonEntity = try! await
@@ -192,7 +193,7 @@ struct ImmersiveView: View {
                     let llImporter = try! USDZLowLevelMeshImporter(rootEntity: skeletonEntity)
                     let gestureOnlyEntity: ModelEntity = try! llImporter.emptyModelEntity()
                     gestureOnlyEntity.components.set(MetalMapSystem.Component(map: metalMap, llMesh: llImporter.mesh))
-                    gestureOnlyEntity.configureSimpleManipulationGestureComponent(collisionShapes: [.generateSphere(radius: 0.075).offsetBy(translation: [0, 0.075, 0])])
+//                    gestureOnlyEntity.configureSimpleManipulationGestureComponent(collisionShapes: [.generateSphere(radius: 0.075).offsetBy(translation: [0, 0.075, 0])])
 
                     gestureOnlyEntity.position = .zero //skeletonEntity.position
 //                    gestureOnlyEntity.position.x *= -1
@@ -252,7 +253,7 @@ struct ImmersiveView: View {
             spatialTrackingSession = SpatialTrackingSession()
             let unavailabilities = await spatialTrackingSession?.run(.init(tracking: [.hand]))
             if unavailabilities?.anchor.contains(.hand) != true {
-                puppetRoot.transform = .init(rotation: .init(angle: .pi / 2, axis: [0, 1, 0]) * .init(angle: .pi / 2, axis: [1, 0, 0]), translation: [-0.03, 0.05, 0.01])
+                puppetRoot.transform = .init(rotation: .init(angle: .pi / 2, axis: [0, 1, 0]) * .init(angle: .pi / 2, axis: [1, 0, 0]), translation: [-0.03, 0.03, 0.01])
                 root.addChild(palm)
                 palm.addChild(puppetRoot)
 
@@ -296,7 +297,7 @@ struct ImmersiveView: View {
             PuppetRealityKitIKSystem.registerSystem()
         }
         .persistentSystemOverlays(.hidden)
-        .upperLimbVisibility(appModel.upperLimbVisibility ? .visible : .hidden)
+        .upperLimbVisibility(appModel.upperLimbVisibility ? .automatic : .hidden)
     }
 }
 
