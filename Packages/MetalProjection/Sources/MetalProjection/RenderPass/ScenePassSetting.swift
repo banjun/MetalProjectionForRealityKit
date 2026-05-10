@@ -223,8 +223,8 @@ class ScenePassSetting {
 
                     // Problem: cannot get IK results from jointTransform
                     // If we set L_shoulder/R_shoulder directly, the skinning could be performed:
-                    jointTransforms[8] = Transform(rotation: .init(angle: .pi / 8, axis: [0, -1, 0]) * .init(angle: .pi / 16, axis: [0, 0, -1])).matrix
-                    jointTransforms[12] = Transform(rotation: .init(angle: .pi / 8, axis: [0, 1, 0]) * .init(angle: .pi / 3, axis: [0, 0, 1])).matrix
+//                    jointTransforms[8] = Transform(rotation: .init(angle: .pi / 8, axis: [0, -1, 0]) * .init(angle: .pi / 16, axis: [0, 0, -1])).matrix
+//                    jointTransforms[12] = Transform(rotation: .init(angle: .pi / 8, axis: [0, 1, 0]) * .init(angle: .pi / 3, axis: [0, 0, 1])).matrix
 
                     let skeleton = model.mesh.contents.skeletons[0]
                     // transform from: Joint[i] -> Model

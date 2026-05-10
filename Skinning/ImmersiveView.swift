@@ -37,6 +37,7 @@ struct ImmersiveView: View {
                 let skeletonEntity = try! await
                 Entity(named: "ありす4-skeleton", in: realityKitContentBundle)
                 skeletonEntity.position = [-0.1, 1, -0.5]
+                skeletonEntity.transform.rotation = .init(angle: .pi, axis: [0, 1, 0])
                 root.addChild(skeletonEntity) // as reference
 
                 // MARK: - Add Skeleton on the fly, calculating naive influences by distance
@@ -183,8 +184,8 @@ struct ImmersiveView: View {
                 // MARK: - Add Fixed IK targets for test
 
                 modelEntity.components.set(PuppetIKComponent(
-                    L_wrist: .init(translation: [skeletonEntity.position.x - 0.03, skeletonEntity.position.y + 0.02, skeletonEntity.position.z]),
-                    R_wrist: .init(translation: [skeletonEntity.position.x + 0.03, skeletonEntity.position.y + 0.20, skeletonEntity.position.z]),
+                    L_wrist: .init(translation: [skeletonEntity.position.x + 0.05, skeletonEntity.position.y + 0.02, skeletonEntity.position.z + 0.01]),
+                    R_wrist: .init(translation: [skeletonEntity.position.x - 0.05, skeletonEntity.position.y + 0.07, skeletonEntity.position.z + 0.01]),
                 ))
                 PuppetIKSystem.registerSystem()
 
