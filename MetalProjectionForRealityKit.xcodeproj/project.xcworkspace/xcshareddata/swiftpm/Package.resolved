@@ -1,13 +1,13 @@
 {
-  "originHash" : "619320a89d2a6f815d24725af2280781b60168078e8e6b3fbdba145d5521bed9",
+  "originHash" : "d9f60667da11bcf5b9a54d2711f385fc1bcc9706aa1bf3c235904f7154eddf81",
   "pins" : [
     {
       "identity" : "dmx",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/banjun/DMX",
       "state" : {
-        "branch" : "dmx-realitykit-shader",
-        "revision" : "7523d17e4c4963c1a6f8b6526cc4b32f44ea7218"
+        "branch" : "fast-sink",
+        "revision" : "85865519b63257f6d898f6f01ce771c3306ddd0f"
       }
     },
     {
