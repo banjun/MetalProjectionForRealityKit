@@ -15,9 +15,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "EA10E7842ED4650E00E3CCD0"
-               BuildableName = "MetalLighting.app"
-               BlueprintName = "MetalLighting"
+               BlueprintIdentifier = "EA20CC692EB8B4E000555555"
+               BuildableName = "MetalProjectionForRealityKit.app"
+               BlueprintName = "MetalProjectionForRealityKit"
                ReferencedContainer = "container:MetalProjectionForRealityKit.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -45,9 +45,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "EA10E7842ED4650E00E3CCD0"
-            BuildableName = "MetalLighting.app"
-            BlueprintName = "MetalLighting"
+            BlueprintIdentifier = "EA20CC692EB8B4E000555555"
+            BuildableName = "MetalProjectionForRealityKit.app"
+            BlueprintName = "MetalProjectionForRealityKit"
             ReferencedContainer = "container:MetalProjectionForRealityKit.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -62,9 +62,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "EA10E7842ED4650E00E3CCD0"
-            BuildableName = "MetalLighting.app"
-            BlueprintName = "MetalLighting"
+            BlueprintIdentifier = "EA20CC692EB8B4E000555555"
+            BuildableName = "MetalProjectionForRealityKit.app"
+            BlueprintName = "MetalProjectionForRealityKit"
             ReferencedContainer = "container:MetalProjectionForRealityKit.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
