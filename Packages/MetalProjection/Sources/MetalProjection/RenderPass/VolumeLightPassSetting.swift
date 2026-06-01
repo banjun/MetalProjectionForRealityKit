@@ -15,12 +15,13 @@ class VolumeLightPassSetting {
 
     let lightsBuffer: MTLBuffer
 
-    convenience init(device: any MTLDevice, width: Int, height: Int, pixelFormat: MTLPixelFormat, depthTexture: any MTLTexture, viewCount: Int) {
-        self.init(device: device,
-                  outTexture: RenderPassEncoderSettings.makeTexture(device: device, width: width, height: height, pixelFormat: pixelFormat, viewCount: viewCount),
+    convenience init(rateMap: RateMap, pixelFormat: MTLPixelFormat, depthTexture: any MTLTexture, viewCount: Int) {
+        self.init(rateMap: rateMap,
+                  outTexture: RenderPassEncoderSettings.makeTexture(device: rateMap.device, width: rateMap.physical.width, height: rateMap.physical.height, pixelFormat: pixelFormat, viewCount: viewCount),
                   depthTexture: depthTexture)
     }
-    init(device: any MTLDevice, outTexture: any MTLTexture, depthTexture: any MTLTexture, coneDivisionStep: Float = .pi / 8) {
+    init(rateMap: RateMap, outTexture: any MTLTexture, depthTexture: any MTLTexture, coneDivisionStep: Float = .pi / 8) {
+        let device = rateMap.device
         let library = device.makeBundleDebugLibrary()!
 
         let d = MTLRenderPipelineDescriptor()
@@ -46,6 +47,7 @@ class VolumeLightPassSetting {
 
         state = try! device.makeRenderPipelineState(descriptor: d)
         descriptor = RenderPassEncoderSettings.renderPassDescriptor(texture: outTexture, depthTexture: depthTexture, depthLoadAction: .load, depthStoreAction: .dontCare)
+        descriptor.rasterizationRateMap = rateMap.underlyingMap
         depthStencilState = device.makeDepthStencilState(descriptor: {
             let d = MTLDepthStencilDescriptor()
             d.isDepthWriteEnabled = false

@@ -123,7 +123,7 @@ public final class MetalMap {
         scenePass = .init(rateMap: rateMap, pixelFormat: pixelFormat, viewCount: viewCount)
         brightPass = .init(rateMap: rateMap / 2, pixelFormat: pixelFormat, viewCount: viewCount)
         bloomPass = .init(rateMap: rateMap / 4, pixelFormat: pixelFormat, viewCount: viewCount)
-        volumeLightPass = .init(device: device, width: rateMap.physical.width, height: rateMap.physical.height, pixelFormat: pixelFormat, depthTexture: scenePass.depthTexture, viewCount: viewCount)
+        volumeLightPass = .init(rateMap: rateMap, pixelFormat: pixelFormat, depthTexture: scenePass.depthTexture, viewCount: viewCount)
         surfaceLightPass = .init(rateMap: rateMap, pixelFormat: pixelFormat, gAlbedoTexture: scenePass.outTexture, gNormalTexture: scenePass.gNormalTexture, gViewPosTexture: scenePass.gViewPosTexture, gORMTexture: scenePass.gORMTexture)
         compositePass = .init(rateMap: rateMap, outTexture: llTexture.read())
 
