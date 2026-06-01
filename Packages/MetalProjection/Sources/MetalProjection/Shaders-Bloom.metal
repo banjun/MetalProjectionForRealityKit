@@ -33,21 +33,24 @@ half4 bloom_fragment(FullscreenIn in [[stage_in]],
     // kawase blur with pow
     float p = 1.05;
     half3 c = 0.0;
-    auto uv = in.uv;
     rasterization_rate_map_decoder rateMap(rrmd);
+    auto pixelSize = float2(bright.get_width(), bright.get_height());
+    auto physicalPos = in.uv * pixelSize;
+    auto screenPos = physicalPos;
     if (kUseVRS) {
-        uv = rateMap.map_physical_to_screen_coordinates(in.uv, in.iid); // FIXME: maybe use actual screen, not just parent rate map. maybe use pixel coord
-        // FIXME: currently rate map distortion is not corrected in this shader with ratemap
+        screenPos = rateMap.map_physical_to_screen_coordinates(physicalPos, in.vid);
     }
     for (int i = 0; i < 8; ++i) {
-        auto pos = uv + offsets[i] * spread;
+        auto neighborScreenPos = screenPos + offsets[i] * spread;
+        auto neighborPhysicalPos = neighborScreenPos;
         if (kUseVRS) {
-            pos = rateMap.map_screen_to_physical_coordinates(pos, in.iid);
+            neighborPhysicalPos = rateMap.map_screen_to_physical_coordinates(neighborScreenPos, in.vid);
         }
-        c += pow(bright.sample(linearSampler, pos, in.iid).rgb, p);
+        auto uv = neighborPhysicalPos / pixelSize;
+        c += pow(bright.sample(linearSampler, uv, in.vid).rgb, p);
     }
     // add center focus
-    auto centerColor = bright.sample(linearSampler, in.uv, in.iid).rgb;
+    auto centerColor = bright.sample(linearSampler, in.uv, in.vid).rgb;
     c += pow(centerColor * intensity, p);
     // restore pow value
     c *= pow(1.0 / (8.0 + 1.5), 1 / p);

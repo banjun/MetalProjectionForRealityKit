@@ -27,19 +27,20 @@ class BloomPassSetting {
         guard kawaseBlurOffsets.count != kawaseBlurSteps else { return }
         self.kawaseBlurOffsets = (0..<kawaseBlurSteps)
             .map {40 * pow(1.5, Float($0))}
-            .map {$0 * 2 / 1024 / 4 * Float(rateMap.logical.width / rateMap.physical.width) / .init(DeviceDependants.aspectRatio, 1)}
+            .map {$0 * 8 / SIMD2<Float>(Float(rateMap.physical.width), Float(rateMap.physical.height))}
     }
 
-    func encode(in commandBuffer: any MTLCommandBuffer, inTexture: any MTLTexture, intensity: Float = 0.5, spread: Float = 1.0, steps: Int = 4) -> any MTLTexture {
+    func encode(in commandBuffer: any MTLCommandBuffer, inTexture: any MTLTexture, inTextureRateMap: RateMap, intensity: Float = 0.5, spread: Float = 1.0, steps: Int = 4) -> any MTLTexture {
         kawaseBlurSteps = steps
         var nextTexture = inTexture
+        var nextRateMap = inTextureRateMap
         for (i, kawaseBlurOffset) in kawaseBlurOffsets.enumerated() {
             let (descriptor, outTexture) = descriptorAndOutTextures[i % descriptorAndOutTextures.count]
             guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor) else { continue }
             encoder.label = String(describing: type(of: self))
             defer {encoder.endEncoding()}
             encoder.setRenderPipelineState(state)
-            encoder.setFragmentRasterizationRateMapData(rateMap: rateMap, index: 10)
+            encoder.setFragmentRasterizationRateMapData(rateMap: nextRateMap, index: 10)
 
             var viewCount = outTexture.arrayLength
             encoder.setVertexBytes(&viewCount, length: MemoryLayout.stride(ofValue: viewCount), index: 1)
@@ -57,6 +58,7 @@ class BloomPassSetting {
             encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: outTexture.arrayLength)
 
             nextTexture = outTexture
+            nextRateMap = rateMap
         }
         return nextTexture
     }

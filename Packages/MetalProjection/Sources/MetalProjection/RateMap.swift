@@ -29,7 +29,11 @@ extension RateMap {
 func / (lhs: RateMap, rhs: Int) -> RateMap {
     let logical = MTLSize(width: lhs.logical.width / rhs, height: lhs.logical.height / rhs, depth: lhs.logical.depth)
     let descriptor = lhs.descriptor.flatMap { descriptor in
-        MTLRasterizationRateMapDescriptor(screenSize: logical, layers: (0..<descriptor.layerCount).map {descriptor.layer(at: $0)!})
+        MTLRasterizationRateMapDescriptor(screenSize: logical, layers: (0..<descriptor.layerCount).map {
+            let layer = descriptor.layer(at: $0)!
+            return .init(horizontal: (0..<layer.sampleCount.width).map {layer.horizontal[$0]},
+                         vertical: (0..<layer.sampleCount.height).map {layer.vertical[$0]})
+        })
     }
     return RateMap(logicalWidth: logical.width, height: logical.height, device: lhs.device, descriptor: descriptor)
 }
