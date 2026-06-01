@@ -18,19 +18,19 @@ struct ContentView: View {
     var body: some View {
         RealityView { content in
             for vid in 0..<DeviceDependants.viewCount {
-                let width: Float = 0.5
+                let width: Float = 0.35
                 let height: Float = width / DeviceDependants.aspectRatio
                 let e = await ModelEntity(mesh: .generatePlane(width: width, height: height), materials: [{
                     let color = SGTexture.texture(metalMap.debugTextureResource)
                         .image2DArrayColor4(index: .int(vid), defaultValue: .transparentBlack, magFilter: .nearest, minFilter: .nearest, uWrapMode: .clampToEdge, vWrapMode: .clampToEdge, noFlipV: .int(1))
                     return try! await ShaderGraphMaterial(surface: unlitSurface(color: color.rgb, opacity: color.a, applyPostProcessToneMap: true))
                 }()])
-                e.position.y = Float((vid * 2 - 1) * (DeviceDependants.viewCount - 1)) * (height / 2 + 0.03)
+                e.position.y = Float((vid * 2 - 1) * (DeviceDependants.viewCount - 1)) * (height / 2 + 0.01)
                 e.position.z = -0.175
                 content.add(e)
             }
         }
-        .frame(height: 768)
+        .frame(height: 1024)
         .opacity(metalMap.debugBlit != nil ? 1 : 0)
         .ornament(attachmentAnchor: .scene(.top)) {
             ToggleImmersiveSpaceButton().padding().glassBackgroundEffect()

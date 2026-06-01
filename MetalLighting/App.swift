@@ -16,6 +16,7 @@ struct MetalLightingApp: App {
             ContentView()
                 .environment(appModel)
         }
+        .windowResizability(.contentMinSize)
 
         ImmersiveSpace(id: appModel.immersiveSpaceID) {
             ImmersiveView()
